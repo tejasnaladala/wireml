@@ -279,6 +279,88 @@ If you have the Stitch MCP installed (we already installed all `stitch-skills` g
 
 ---
 
+## Section G — Addendum: UI/UX Pro Max findings
+
+The following refinements came out of a data-driven pass using the ui-ux-pro-max skill against the `WireML` brief. Treat these as **hard overrides** on anything in Sections A–F that conflicts.
+
+### G1. Per-chapter progressive color reveal (recommended landing pattern)
+
+Scroll-Triggered Storytelling performs best with a **building-intensity** palette where each chapter has its own subtle color tint, not a uniform lavender. Bias each scene toward one of WireML's category colors so the palette tells the story too:
+
+| Scene | Dominant tint | Purpose |
+| --- | --- | --- |
+| 1. Hero | lavender `#8b5cf6` | brand intro |
+| 2. Problem | cool grey `#6c7a8c` | dim / contrast |
+| 3. Node graph | data green `#10b981` | data flowing |
+| 4. Foundation models | backbone blue `#3b82f6` | modeling |
+| 5. Runtime split | head amber `#f59e0b` | execution |
+| 6. GPU universe | eval red `#ef4444` | intensity |
+| 7. CTA | deploy teal `#14b8a6` | launch / go |
+
+Keep the overall page dark; the tint is a soft 10–15% hue shift on background glow and light accents — never on text or primary buttons.
+
+### G2. Mini-CTA at the end of every chapter
+
+Add a small, low-pressure CTA at the tail of scenes 2–6, not just a final climax CTA in scene 7. Suggested copy:
+
+- Scene 2 → "See the full node library →"
+- Scene 3 → "Try the image-classifier template →"
+- Scene 4 → "Browse the backbone catalog →"
+- Scene 5 → "Clone the repo to unlock Power Mode →"
+- Scene 6 → "Run WireML on your hardware →"
+
+All mini-CTAs link to the same GitHub / hosted demo — this is about providing exits for hot visitors, not splitting destination.
+
+### G3. Motion-safety (elevated to hard requirement)
+
+ui-ux-pro-max flags motion sensitivity at **High severity**. Scroll-jacking and parallax are literal nausea triggers. Enforce these in the generated site, not just as nice-to-haves:
+
+- **Max two animated elements visible per scene** (the camera move counts as one).
+- **No infinite loop decorations.** Scan-line overlays and drifting blobs must fade after ~4s or only animate while scroll is active.
+- The continuous GPU-die label cycle in Scene 5 **must stop** after one full 5-label cycle; then it holds on the detected device (default "CUDA").
+- Easing standard: switch to **`cubic-bezier(0.16, 1, 0.3, 1)`** for enter (Linear's "Expo.out" — industry premium-dark standard). Keep `cubic-bezier(0.55, 0, 0.68, 1)` for exit.
+- Smooth scroll: `html { scroll-behavior: smooth }` for anchor navigation (skipping scenes via the progress indicator).
+- Every scene must be **fully understandable with `prefers-reduced-motion: reduce`** — copy alone carries the pitch.
+
+### G4. Depth / background refinement
+
+Flat `#0a0e14` backgrounds read as "inky" but lose depth at scale. Swap to a subtle linear gradient:
+
+```css
+background: linear-gradient(180deg, #0a0a0f 0%, #020203 100%);
+```
+
+Avoid `#000000` true black — OLED smear on mobile is real.
+
+Add per-scene **ambient light blobs**: 2–3 absolutely-positioned circular blurs (radius 30–50, opacity 0.08–0.12) in the scene's dominant tint from G1. Animate with `transform` only (no box-shadow or filter animation — they're slow).
+
+### G5. Hero typography — exaggerated minimalism
+
+The master prompt specifies `h1 72/80`. Upgrade the hero h1 only to **responsive exaggerated minimalism** so it reads as a statement on both phone and 4K:
+
+```css
+font-size: clamp(3.5rem, 10vw, 10rem);
+font-weight: 900;
+letter-spacing: -0.05em;
+line-height: 0.95;
+```
+
+This matches top-tier developer-tool hero treatments (Linear, Vercel, Anthropic) and only applies to the hero h1 — every other heading stays in the standard scale.
+
+### G6. Progress indicator
+
+Because this is a 7-scene storytelling layout, add a fixed **chapter rail** on the right edge: a vertical stack of seven 2px-wide dots, the current one stretched to a capsule, colored in that scene's dominant tint from G1. Clicking scrolls to that scene. Hides on `prefers-reduced-motion: reduce`.
+
+### G7. Accessibility hardening beyond Section F
+
+- Run `axe-core` in CI before merging.
+- All 3D canvas content must have a **semantic text equivalent below it** (can be visually hidden with `sr-only`) — Three.js scenes are opaque to screen readers.
+- **Focus-visible** styles on all interactive 3D elements — when a user tabs, the 3D scene must visibly highlight the focused object.
+- Respect `prefers-color-scheme: light`: even though the site is dark-first, provide a minimal light-mode fallback with the same content and semantic structure (no 3D needed in light mode).
+- Every icon-only button carries `aria-label`.
+
+---
+
 ## Section F — Handoff Checklist
 
 After generating the site, verify:
@@ -290,3 +372,11 @@ After generating the site, verify:
 - [ ] The demo link points to the hosted WireML demo (`https://wireml.dev` or `https://OWNER.github.io/wireml/`).
 - [ ] GitHub link is correct.
 - [ ] OG image and Twitter card are present in `<head>`.
+- [ ] Per-chapter tint applied (Section G1). No scene looks identical to another.
+- [ ] Mini-CTA rendered at the tail of Scenes 2–6 (Section G2).
+- [ ] `prefers-reduced-motion` version verified — page fully comprehensible with zero motion.
+- [ ] No true `#000000` backgrounds; gradient from `#0a0a0f` → `#020203` used (Section G4).
+- [ ] Easing curves: `cubic-bezier(0.16, 1, 0.3, 1)` for enters, `cubic-bezier(0.55, 0, 0.68, 1)` for exits.
+- [ ] Chapter progress rail visible on the right edge (Section G6).
+- [ ] Axe-core passes with zero critical or serious issues.
+- [ ] 3D scenes have `sr-only` text equivalents.
