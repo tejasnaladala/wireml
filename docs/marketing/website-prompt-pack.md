@@ -163,7 +163,7 @@ Glyphs sit on a slow-moving plane that the camera flies through horizontally. As
 Scene 7 (CTA) refinement. The same node cards from Scene 1 return. They drift in, then execute a final assembly: they form a large serif-style "W" ligature (actual angular geometry, not a font glyph) centered on the screen. The W has a faint lavender outline glow.
 
 Below the W, three terminal-style rows:
-  $ git clone https://github.com/OWNER/wireml
+  $ git clone https://github.com/nautilus4707/wireml
   $ docker compose up
   $ pnpm dev
 
@@ -369,7 +369,7 @@ After generating the site, verify:
 - [ ] All scroll animations have a reduced-motion variant.
 - [ ] Keyboard reaches every CTA.
 - [ ] The site loads in under 300 KB of gzipped JS excluding the 3D canvas chunk.
-- [ ] The demo link points to the hosted WireML demo (`https://wireml.dev` or `https://OWNER.github.io/wireml/`).
+- [ ] The demo link points to the hosted WireML demo (`https://wireml.dev` or `https://nautilus4707.github.io/wireml/`).
 - [ ] GitHub link is correct.
 - [ ] OG image and Twitter card are present in `<head>`.
 - [ ] Per-chapter tint applied (Section G1). No scene looks identical to another.

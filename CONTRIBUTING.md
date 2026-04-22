@@ -5,7 +5,7 @@ Welcome. WireML is an open-source node-graph ML workbench — contributions of n
 ## Development setup
 
 ```bash
-git clone https://github.com/OWNER/wireml
+git clone https://github.com/nautilus4707/wireml
 cd wireml
 pnpm install
 cd apps/runtime && uv sync && cd -
