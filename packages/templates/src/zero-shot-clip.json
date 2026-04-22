@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "name": "Zero-shot classifier",
+  "description": "No labeled data needed — describe your classes in words. CLIP does the rest.",
+  "nodes": [
+    {
+      "id": "n_webcam",
+      "schemaId": "data.webcam",
+      "position": { "x": 40, "y": 200 },
+      "params": { "captureMode": "continuous", "width": 224, "height": 224 }
+    },
+    {
+      "id": "n_clip_image",
+      "schemaId": "backbone.clip.vit-b-32",
+      "position": { "x": 360, "y": 200 },
+      "params": { "normalize": true }
+    },
+    {
+      "id": "n_prompts",
+      "schemaId": "data.upload",
+      "position": { "x": 40, "y": 440 },
+      "params": { "classes": ["a photo of a dog", "a photo of a cat", "a photo of a person"] }
+    },
+    {
+      "id": "n_clip_text",
+      "schemaId": "backbone.clip.text-vit-b-32",
+      "position": { "x": 360, "y": 440 },
+      "params": { "normalize": true }
+    },
+    {
+      "id": "n_zeroshot",
+      "schemaId": "head.zeroshot-clip",
+      "position": { "x": 700, "y": 320 },
+      "params": { "temperature": 100 }
+    },
+    {
+      "id": "n_preview",
+      "schemaId": "deploy.preview",
+      "position": { "x": 1020, "y": 320 },
+      "params": { "showBars": true, "topK": 3 }
+    }
+  ],
+  "edges": [
+    { "id": "e1", "source": { "nodeId": "n_webcam", "port": "frames" }, "target": { "nodeId": "n_clip_image", "port": "images" } },
+    { "id": "e2", "source": { "nodeId": "n_clip_image", "port": "features" }, "target": { "nodeId": "n_zeroshot", "port": "imageFeatures" } },
+    { "id": "e3", "source": { "nodeId": "n_prompts", "port": "labels" }, "target": { "nodeId": "n_clip_text", "port": "text" } },
+    { "id": "e4", "source": { "nodeId": "n_clip_text", "port": "features" }, "target": { "nodeId": "n_zeroshot", "port": "textFeatures" } },
+    { "id": "e5", "source": { "nodeId": "n_zeroshot", "port": "model" }, "target": { "nodeId": "n_preview", "port": "model" } },
+    { "id": "e6", "source": { "nodeId": "n_clip_image", "port": "features" }, "target": { "nodeId": "n_preview", "port": "features" } }
+  ],
+  "meta": {
+    "tags": ["advanced", "image", "zero-shot"]
+  }
+}

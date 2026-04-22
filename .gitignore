@@ -1,0 +1,55 @@
+# deps
+node_modules/
+.pnpm-store/
+
+# build artifacts
+dist/
+build/
+.turbo/
+.next/
+.vercel/
+.vite/
+
+# python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.python-version
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# uv
+.uv-cache/
+
+# env
+.env
+.env.local
+.env.*.local
+
+# ml artifacts
+**/models/cache/
+**/checkpoints/
+**/*.onnx
+**/*.pt
+**/*.safetensors
+
+# editors
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# brainstorming artifacts
+.superpowers/
+
+# logs
+*.log
+pnpm-debug.log
+npm-debug.log
