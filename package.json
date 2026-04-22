@@ -6,7 +6,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/OWNER/wireml.git"
+    "url": "https://github.com/nautilus4707/wireml.git"
   },
   "workspaces": [
     "apps/web",

@@ -5,7 +5,8 @@
 **Teachable Machine, re-imagined as a node-graph workbench on modern foundation models — browser-first, GPU-ready locally.**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![CI](https://github.com/OWNER/wireml/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/wireml/actions/workflows/ci.yml)
+[![CI](https://github.com/nautilus4707/wireml/actions/workflows/ci.yml/badge.svg)](https://github.com/nautilus4707/wireml/actions/workflows/ci.yml)
+[![Deploy](https://github.com/nautilus4707/wireml/actions/workflows/deploy-web.yml/badge.svg)](https://nautilus4707.github.io/wireml/)
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)
 ![WebGPU](https://img.shields.io/badge/WebGPU-ready-8b5cf6)
