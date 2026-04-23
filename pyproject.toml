@@ -36,6 +36,7 @@ ml = [
     "accelerate>=1.2.0",
     "onnxruntime>=1.20.0",
 ]
+webcam = ["opencv-python>=4.10.0"]
 mlx = ["mlx>=0.20.0"]
 directml = ["onnxruntime-directml>=1.20.0"]
 dev = [
