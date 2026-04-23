@@ -275,64 +275,67 @@ class HomeScreen(Screen):
                 self.notify(f"unknown template {tile.template_slug}", severity="error")
                 return
             self.app.push_screen(PipelineScreen(template, autorun=autorun))
-        elif tile.kind == "webcam":
-            self._launch_webcam(tile)
+            return
 
-    @work(thread=True, exclusive=True)
-    def _launch_webcam(self, tile: TrainTile) -> None:
-        """Shell out to the webcam demo in a detached cmd window so the OpenCV
-        UI has its own focus. The TUI keeps running."""
-        import os
+        if tile.kind == "webcam":
+            if tile.webcam_classes:
+                self._launch_webcam_with(list(tile.webcam_classes))
+                return
+            # Custom-classes tile: prompt for class names.
+            from wireml.tui.screens.custom_classes import CustomClassesModal
+
+            self.app.push_screen(
+                CustomClassesModal(on_submit=self._launch_webcam_with)
+            )
+
+    def _launch_webcam_with(self, classes: list[str]) -> None:
+        """Pre-flight check + detach the webcam demo into its own console."""
+        missing = [m for m in ("cv2", "torch") if not _mod_exists(m)]
+        if missing:
+            self.notify(
+                f"Install extras first: uv tool install 'wireml[ml,webcam]' "
+                f"(missing: {', '.join(missing)})",
+                severity="error",
+                timeout=10,
+            )
+            return
+
+        self._spawn_demo(classes)
+        self.notify(
+            f"launching webcam trainer — classes: {', '.join(classes)}",
+            title="WireML",
+            timeout=5,
+        )
+
+    @work(thread=True, exclusive=False)
+    def _spawn_demo(self, classes: list[str]) -> None:
+        """Fork the demo as a detached process. Windows → CREATE_NEW_CONSOLE.
+        macOS/Linux → launch inside an available terminal emulator.
+        """
         import subprocess
         import sys
         from shutil import which
 
-        if not tile.webcam_classes:
-            self.app.call_from_thread(
-                self.notify,
-                "Custom webcam picker isn't wired yet — use `wireml demo webcam class1 class2` for now.",
-                title="Not implemented",
-                severity="warning",
-            )
-            return
-
-        missing = [m for m in ("cv2", "torch") if not _mod_exists(m)]
-        if missing:
-            self.app.call_from_thread(
-                self.notify,
-                f"Install extras first: uv tool install 'wireml[ml,webcam]' (missing: {', '.join(missing)})",
-                severity="error",
-            )
-            return
-
-        args = ["-m", "wireml", "demo", "webcam", *tile.webcam_classes, "-m", "20"]
+        args = [sys.executable, "-m", "wireml", "demo", "webcam", *classes, "-m", "20"]
 
         if sys.platform == "win32":
-            # Detach into its own console so keyboard focus lands on the OpenCV window.
-            cmd = [
-                os.environ.get("COMSPEC", "cmd.exe"),
-                "/c",
-                "start",
-                "",
-                sys.executable,
-                *args,
-            ]
             subprocess.Popen(  # noqa: S603
-                cmd,
-                creationflags=getattr(subprocess, "CREATE_NEW_CONSOLE", 0),
+                args,
+                creationflags=subprocess.CREATE_NEW_CONSOLE,
             )
         else:
-            term = which("x-terminal-emulator") or which("gnome-terminal") or which("alacritty")
+            term = (
+                which("x-terminal-emulator")
+                or which("gnome-terminal")
+                or which("konsole")
+                or which("alacritty")
+                or which("kitty")
+                or which("wezterm")
+            )
             if term:
-                subprocess.Popen([term, "-e", sys.executable, *args])  # noqa: S603
+                subprocess.Popen([term, "-e", *args])  # noqa: S603
             else:
-                subprocess.Popen([sys.executable, *args])  # noqa: S603
-
-        self.app.call_from_thread(
-            self.notify,
-            f"Launched webcam trainer: {', '.join(tile.webcam_classes)}",
-            title="WireML",
-        )
+                subprocess.Popen(args)  # noqa: S603
 
 
 # ─── helpers ────────────────────────────────────────────────────────────────
