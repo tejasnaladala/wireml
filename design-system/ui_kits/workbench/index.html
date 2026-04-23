@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WireML — Workbench UI Kit</title>
+<link rel="stylesheet" href="../../colors_and_type.css">
+<style>
+  html,body,#root { height: 100%; margin: 0; overflow: hidden; }
+  body { background: var(--wire-bg); }
+  .category-dot { display: inline-block; width: 8px; height: 8px; border-radius: 999px; }
+  .category-dot.data { background: #10b981; }
+  .category-dot.preprocess { background: #8b5cf6; }
+  .category-dot.backbone { background: #3b82f6; }
+  .category-dot.head { background: #f59e0b; }
+  .category-dot.eval { background: #ef4444; }
+  .category-dot.deploy { background: #14b8a6; }
+  .btn-primary {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 7px 12px; border-radius: 6px; border: none;
+    background: var(--wire-accent); color: white; font-weight: 500;
+    font-size: 13px; cursor: pointer; font-family: var(--font-sans);
+    transition: filter 150ms;
+  }
+  .btn-primary:hover { filter: brightness(1.1); }
+  .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+  .btn-ghost {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 10px; border-radius: 6px; border: none;
+    background: transparent; color: var(--wire-text); font-size: 13px;
+    cursor: pointer; font-family: var(--font-sans);
+    transition: background 150ms;
+  }
+  .btn-ghost:hover { background: var(--wire-surface-2); }
+  @keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+
+<script type="text/babel" src="TopBar.jsx"></script>
+<script type="text/babel" src="NodeLibrary.jsx"></script>
+<script type="text/babel" src="Inspector.jsx"></script>
+<script type="text/babel" src="GraphCanvas.jsx"></script>
+<script type="text/babel" src="TemplateGallery.jsx"></script>
+
+<script type="text/babel">
+const IMAGE_CLASSIFIER = {
+  nodes: [
+    { id: 'n1', category: 'data', icon: 'upload', name: 'Upload Images',
+      description: 'User-provided image files with class labels.',
+      mode: 'triggered', x: 40, y: 80, outputs: ['images', 'labels'],
+      params: [{ name: 'classes', kind: 'json', default: '["dogs","cats"]' }] },
+    { id: 'n2', category: 'data', icon: 'camera', name: 'Webcam',
+      description: 'Live camera feed.',
+      mode: 'reactive', x: 40, y: 300, outputs: ['frames'],
+      params: [{ name: 'captureMode', kind: 'enum', options: ['manual','continuous'], default: 'manual' }] },
+    { id: 'n3', category: 'backbone', icon: 'brain', name: 'CLIP ViT-B/32',
+      description: 'OpenAI CLIP image encoder. 512-d features.',
+      mode: 'reactive', x: 310, y: 190, inputs: ['images'], outputs: ['features'],
+      params: [{ name: 'normalize', kind: 'boolean', default: true }] },
+    { id: 'n4', category: 'head', icon: 'calculator', name: 'Linear Classifier',
+      description: 'Trainable linear head. Soft-max over classes.',
+      mode: 'triggered', x: 580, y: 190, inputs: ['features', 'labels'], outputs: ['model'],
+      params: [
+        { name: 'epochs', kind: 'number', default: 50 },
+        { name: 'learningRate', kind: 'number', default: 0.001 },
+        { name: 'batchSize', kind: 'number', default: 16 },
+      ] },
+    { id: 'n5', category: 'deploy', icon: 'monitor', name: 'Live Preview',
+      description: 'Classify a live stream and show class probabilities.',
+      mode: 'reactive', x: 850, y: 190, inputs: ['model', 'features'], outputs: [],
+      params: [{ name: 'topK', kind: 'number', default: 3 }] },
+  ],
+  edges: [
+    { source: 'n1', target: 'n3' },
+    { source: 'n2', target: 'n3' },
+    { source: 'n1', target: 'n4' },
+    { source: 'n3', target: 'n4' },
+    { source: 'n4', target: 'n5' },
+    { source: 'n3', target: 'n5' },
+  ],
+};
+
+function App() {
+  const [galleryOpen, setGalleryOpen] = React.useState(false);
+  const [graph, setGraph] = React.useState(IMAGE_CLASSIFIER);
+  const [selectedId, setSelectedId] = React.useState('n3');
+  const [runtime, setRuntime] = React.useState('web');
+  const [running, setRunning] = React.useState(false);
+
+  React.useEffect(() => {
+    if (window.lucide) window.lucide.createIcons();
+  });
+
+  const selected = graph.nodes.find(n => n.id === selectedId);
+  const onRun = () => {
+    setRunning(true);
+    setTimeout(() => setRunning(false), 1600);
+  };
+  return (
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <TopBar
+        runtimeKind={runtime}
+        onToggleRuntime={() => setRuntime(r => r === 'local' ? 'web' : 'local')}
+        onRun={onRun}
+        running={running}
+        graphName="Image classifier — starter"
+      />
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+        <NodeLibrary powerMode={runtime === 'local'} />
+        <GraphCanvas
+          nodes={graph.nodes}
+          edges={graph.edges}
+          selectedId={selectedId}
+          onSelect={setSelectedId}
+        />
+        <Inspector node={selected} />
+      </div>
+      {galleryOpen && <TemplateGallery onClose={() => setGalleryOpen(false)}
+        onPick={() => setGalleryOpen(false)}/>}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

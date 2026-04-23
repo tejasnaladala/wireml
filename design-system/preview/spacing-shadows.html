@@ -1,0 +1,12 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../colors_and_type.css"><style>
+html,body{margin:0;background:var(--wire-bg);color:var(--wire-text);font-family:var(--font-sans)}
+.card{padding:32px;display:grid;grid-template-columns:repeat(3,1fr);gap:22px;align-items:center}
+.col{display:flex;flex-direction:column;align-items:center;gap:12px}
+.box{width:120px;height:56px;background:var(--wire-surface);border-radius:10px}
+.lbl{font-family:var(--font-mono);font-size:10px;color:var(--wire-muted);text-transform:uppercase;letter-spacing:.1em;text-align:center}
+.v{font-family:var(--font-mono);font-size:10px;color:var(--wire-text);text-align:center;max-width:180px;line-height:1.4}
+</style></head><body><div class="card">
+  <div class="col"><div class="box" style="box-shadow:0 4px 24px -4px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)"></div><span class="lbl">node</span><span class="v">0 4px 24px -4px / 60%</span></div>
+  <div class="col"><div class="box" style="box-shadow:0 0 0 2px #8b5cf6, 0 4px 32px -4px rgba(139,92,246,0.5)"></div><span class="lbl">node selected</span><span class="v">2px lavender ring + 32px tint</span></div>
+  <div class="col"><div class="box" style="box-shadow:0 24px 64px -16px rgba(0,0,0,0.8)"></div><span class="lbl">overlay</span><span class="v">0 24px 64px -16px / 80%</span></div>
+</div></body></html>
