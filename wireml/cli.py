@@ -71,23 +71,82 @@ demo_app = typer.Typer(help="Interactive end-to-end demos (webcam, etc).")
 app.add_typer(demo_app, name="demo")
 
 
+@demo_app.command("camera-check")
+def demo_camera_check() -> None:
+    """Probe every camera index 0–3 and report backend + resolution + fps.
+
+    Use when the webcam demo looks blurry or fails to open — the results
+    tell you which --camera index and which backend your host prefers.
+    """
+    try:
+        import cv2
+    except ImportError as exc:  # pragma: no cover
+        typer.secho(
+            "opencv not installed. Run: uv tool install 'git+https://github.com/tejasnaladala/wireml' --with 'wireml[ml,webcam]'",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(code=1) from exc
+
+    backends = [
+        ("DirectShow", getattr(cv2, "CAP_DSHOW", 700)),
+        ("MediaFoundation", getattr(cv2, "CAP_MSMF", 1400)),
+        ("Any", cv2.CAP_ANY),
+    ]
+    any_found = False
+    for idx in range(4):
+        for name, backend in backends:
+            cap = cv2.VideoCapture(idx, backend)
+            if not cap.isOpened():
+                cap.release()
+                continue
+            cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
+            cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+            ok, _ = cap.read()
+            w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            fps = cap.get(cv2.CAP_PROP_FPS)
+            cap.release()
+            status = "ok" if ok else "opened-no-frame"
+            typer.echo(f"  camera {idx:<2} · {name:<16} · {w}x{h} @ {fps:.0f}fps · {status}")
+            any_found = True
+            break
+    if not any_found:
+        typer.secho("no cameras detected", fg=typer.colors.RED)
+
+
 @demo_app.command("webcam")
 def demo_webcam(
     classes: list[str] = typer.Argument(  # noqa: B008
         ...,
         help="Class names, e.g. `with-phone without-phone`. Need 2+.",
     ),
-    samples: int = typer.Option(30, "--samples", "-s", help="Samples per class."),
+    min_samples: int = typer.Option(
+        15,
+        "--min-samples",
+        "-m",
+        help="Soft floor before you can advance to the next class. No upper limit.",
+    ),
     camera: int = typer.Option(0, "--camera", "-c", help="Camera index (0, 1, …)."),
+    sharpen: float = typer.Option(
+        0.6,
+        "--sharpen",
+        help="Unsharp-mask amount [0.0–2.0]. Toggle with S, +/- to nudge, 0 to disable.",
+    ),
+    width: int = typer.Option(1920, "--width", help="Target capture width."),
+    height: int = typer.Option(1080, "--height", help="Target capture height."),
     verbose: bool = typer.Option(False, "--verbose", "-v"),
 ) -> None:
     """Teachable-Machine-style webcam demo.
 
-    Opens your webcam, captures samples for each class, trains a CLIP-based
-    linear classifier, and shows a live prediction overlay.
+    Opens your webcam. HOLD SPACE to stream frames into the current class
+    (release to stop). Press N to advance to the next class. After all
+    classes are captured, trains a CLIP-based linear classifier and opens a
+    live prediction window.
 
     Example:
-        wireml demo webcam with-phone without-phone --samples 40
+        wireml demo webcam with-phone without-phone
     """
     logging.basicConfig(
         level=logging.DEBUG if verbose else logging.INFO,
@@ -96,7 +155,14 @@ def demo_webcam(
     from wireml.demos.webcam import run as run_demo
 
     try:
-        run_demo(class_names=classes, samples_per_class=samples, camera=camera)
+        run_demo(
+            class_names=classes,
+            min_samples=min_samples,
+            camera=camera,
+            sharpen=sharpen,
+            width=width,
+            height=height,
+        )
     except RuntimeError as exc:
         typer.secho(f"✗ {exc}", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1) from exc
