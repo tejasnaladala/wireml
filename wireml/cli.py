@@ -5,6 +5,7 @@ scripting and CI.
 """
 from __future__ import annotations
 
+import contextlib
 import logging
 import sys
 
@@ -17,10 +18,8 @@ from wireml import __version__
 for stream in (sys.stdout, sys.stderr):
     reconfigure = getattr(stream, "reconfigure", None)
     if reconfigure is not None:
-        try:
+        with contextlib.suppress(OSError, ValueError):
             reconfigure(encoding="utf-8", errors="replace")
-        except (OSError, ValueError):
-            pass
 
 app = typer.Typer(
     name="wireml",
@@ -66,6 +65,41 @@ def templates() -> None:
     for t in TEMPLATES:
         typer.echo(f"{t.slug:<20} {t.title}")
         typer.echo(f"                     {t.subtitle}")
+
+
+demo_app = typer.Typer(help="Interactive end-to-end demos (webcam, etc).")
+app.add_typer(demo_app, name="demo")
+
+
+@demo_app.command("webcam")
+def demo_webcam(
+    classes: list[str] = typer.Argument(  # noqa: B008
+        ...,
+        help="Class names, e.g. `with-phone without-phone`. Need 2+.",
+    ),
+    samples: int = typer.Option(30, "--samples", "-s", help="Samples per class."),
+    camera: int = typer.Option(0, "--camera", "-c", help="Camera index (0, 1, …)."),
+    verbose: bool = typer.Option(False, "--verbose", "-v"),
+) -> None:
+    """Teachable-Machine-style webcam demo.
+
+    Opens your webcam, captures samples for each class, trains a CLIP-based
+    linear classifier, and shows a live prediction overlay.
+
+    Example:
+        wireml demo webcam with-phone without-phone --samples 40
+    """
+    logging.basicConfig(
+        level=logging.DEBUG if verbose else logging.INFO,
+        format="%(asctime)s %(levelname)-7s %(name)s: %(message)s",
+    )
+    from wireml.demos.webcam import run as run_demo
+
+    try:
+        run_demo(class_names=classes, samples_per_class=samples, camera=camera)
+    except RuntimeError as exc:
+        typer.secho(f"✗ {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from exc
 
 
 @app.command()
