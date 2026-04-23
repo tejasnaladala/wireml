@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>wire/ml — scroll score</title>
+<link rel="stylesheet" href="../../colors_and_type.css">
+<style>
+  html, body { margin: 0; background: #050508; color: #e5ecf4;
+    font-family: var(--font-mono); overflow-x: hidden;
+    -webkit-font-smoothing: antialiased; }
+  body { cursor: crosshair; }
+
+  /* ── Fixed overlays ───────────────────────────────────── */
+  .scan { position: fixed; inset: 0; pointer-events: none; z-index: 40;
+    background: repeating-linear-gradient(
+      transparent 0 2px, rgba(255,255,255,0.022) 2px 3px); }
+  .vignette { position: fixed; inset: 0; pointer-events: none; z-index: 39;
+    background: radial-gradient(ellipse at center,
+      transparent 40%, rgba(0,0,0,0.65) 100%); }
+  .grain { position: fixed; inset: 0; pointer-events: none; z-index: 41; opacity: 0.04;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' seed='3'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E"); }
+
+  /* ── Nav / HUD chrome ─────────────────────────────────── */
+  .hud { position: fixed; z-index: 50; font-size: 10px; letter-spacing: 0.18em;
+    text-transform: uppercase; color: #6c7a8c; pointer-events: none;
+    mix-blend-mode: difference; }
+  .hud.tl { top: 20px; left: 24px; }
+  .hud.tr { top: 20px; right: 24px; text-align: right; }
+  .hud.bl { bottom: 20px; left: 24px; font-variant-numeric: tabular-nums; }
+  .hud.br { bottom: 20px; right: 24px; font-variant-numeric: tabular-nums;
+    display: flex; gap: 14px; align-items: baseline; }
+  .hud .mk { color: #9effc8; text-shadow: 0 0 6px rgba(158,255,200,0.5); }
+
+  /* ── Left scroll index (chapter rail) ─────────────────── */
+  .rail { position: fixed; left: 24px; top: 50%; transform: translateY(-50%);
+    z-index: 45; display: flex; flex-direction: column; gap: 14px;
+    font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase;
+    mix-blend-mode: difference; }
+  .rail .r { color: #2a2f37; cursor: pointer; transition: color 200ms; font-variant-numeric: tabular-nums; }
+  .rail .r.on { color: #e5ecf4; }
+  .rail .r::before { content: "— "; color: #2a2f37; }
+  .rail .r.on::before { content: "▸ "; color: #9effc8; }
+
+  /* ── Progress ─────────────────────────────────────────── */
+  .prog { position: fixed; top: 0; left: 0; height: 1px; width: 0;
+    background: #9effc8; z-index: 60;
+    box-shadow: 0 0 8px rgba(158,255,200,0.6); }
+
+  /* ── Stages (each ~200vh for scroll-room) ─────────────── */
+  section.stage { position: relative; width: 100%; min-height: 100vh;
+    display: flex; align-items: center; justify-content: center; }
+  section.stage.tall { min-height: 220vh; }
+  .pin { position: sticky; top: 0; width: 100%; height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden; }
+
+  /* ── Giant display type ──────────────────────────────── */
+  .disp { font-family: var(--font-sans); font-weight: 900;
+    letter-spacing: -0.06em; line-height: 0.84;
+    font-size: clamp(5rem, 18vw, 22rem); color: #e5ecf4; }
+  .dim { color: #2a2f37; }
+  .ghost { color: transparent; -webkit-text-stroke: 1px #2a2f37; }
+  .lit { color: #9effc8; text-shadow: 0 0 22px rgba(158,255,200,0.35); }
+
+  .eye { font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: 0.22em; text-transform: uppercase; color: #6c7a8c; }
+
+  /* ── SVG art layers ──────────────────────────────────── */
+  .art { position: absolute; inset: 0; pointer-events: none; }
+  .art svg { width: 100%; height: 100%; overflow: visible; }
+  .stroke { fill: none; stroke: #9effc8; stroke-width: 1;
+    filter: drop-shadow(0 0 4px rgba(158,255,200,0.4)); }
+  .stroke.w { stroke: #e5ecf4; filter: none; opacity: 0.3; }
+  .stroke.d { stroke: #2a2f37; }
+
+  /* ── Blinking caret ──────────────────────────────────── */
+  @keyframes blink { 0%,49% { opacity: 1 } 50%,100% { opacity: 0 } }
+  .caret { display: inline-block; width: 0.4em; height: 0.82em;
+    background: #9effc8; vertical-align: -0.05em; margin-left: 0.08em;
+    animation: blink 1s steps(1,end) infinite;
+    box-shadow: 0 0 12px rgba(158,255,200,0.6); }
+
+  /* ── Marquee text ────────────────────────────────────── */
+  @keyframes mq { 0% { transform: translateX(0) } 100% { transform: translateX(-50%) } }
+  .marquee { white-space: nowrap; font-size: clamp(3rem, 9vw, 10rem);
+    font-weight: 900; letter-spacing: -0.04em; font-family: var(--font-sans);
+    color: transparent; -webkit-text-stroke: 1px #2a2f37;
+    animation: mq 40s linear infinite; display: inline-block; }
+
+  /* ── Footer ──────────────────────────────────────────── */
+  footer { padding: 120px 24px 60px; text-align: center;
+    font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: #3d434d; border-top: 1px dashed #1a1d22; }
+  footer .sig { font-family: var(--font-sans); font-size: clamp(4rem, 12vw, 10rem);
+    font-weight: 900; letter-spacing: -0.05em;
+    color: transparent; -webkit-text-stroke: 1px #6c7a8c;
+    line-height: 0.9; margin: 0 0 48px; }
+</style>
+</head>
+<body>
+
+<div class="scan"></div>
+<div class="vignette"></div>
+<div class="grain"></div>
+<div class="prog" id="prog"></div>
+
+<!-- HUD corners -->
+<div class="hud tl">wire/ml — scroll_score <span class="mk">◉ REC</span></div>
+<div class="hud tr">v0.1.0-alpha · 2026</div>
+<div class="hud bl" id="coord">lat  48.000 / lon  00.000</div>
+<div class="hud br"><span id="pct">000</span>%<span>·</span><span id="fps">60</span>hz<span>·</span><span>↓ scroll</span></div>
+
+<!-- Chapter rail -->
+<nav class="rail" id="rail">
+  <a class="r on" data-i="0" href="#c0">00 / overture</a>
+  <a class="r"    data-i="1" href="#c1">01 / wires</a>
+  <a class="r"    data-i="2" href="#c2">02 / graph</a>
+  <a class="r"    data-i="3" href="#c3">03 / signal</a>
+  <a class="r"    data-i="4" href="#c4">04 / ship</a>
+</nav>
+
+<!-- ═══════════════════════════════ 00 ═══════════════════════════ -->
+<section class="stage tall" id="c0">
+  <div class="pin">
+    <!-- drifting wire art -->
+    <div class="art" id="art0">
+      <svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+        <defs>
+          <pattern id="dots" width="40" height="40" patternUnits="userSpaceOnUse">
+            <circle cx="1" cy="1" r="0.6" fill="#1a1d22"/>
+          </pattern>
+        </defs>
+        <rect width="1600" height="900" fill="url(#dots)"/>
+        <!-- horizon line -->
+        <line x1="0" y1="450" x2="1600" y2="450" class="stroke d" stroke-dasharray="2 8"/>
+        <!-- sweeping curves -->
+        <g id="wires0">
+          <path class="stroke" d="M-200,450 Q400,200 800,450 T1800,450"/>
+          <path class="stroke w" d="M-200,450 Q400,700 800,450 T1800,450"/>
+          <path class="stroke d" d="M-200,450 Q400,350 800,450 T1800,450"/>
+        </g>
+        <!-- nodes along upper curve -->
+        <g id="nodes0" fill="#050508" stroke="#9effc8" stroke-width="1">
+          <circle cx="200" cy="350" r="3"/>
+          <circle cx="500" cy="290" r="3"/>
+          <circle cx="800" cy="450" r="4"/>
+          <circle cx="1100" cy="380" r="3"/>
+          <circle cx="1400" cy="500" r="3"/>
+        </g>
+      </svg>
+    </div>
+    <!-- headline -->
+    <div style="position: relative; z-index: 2; padding: 0 24px; max-width: 1600px;">
+      <div class="eye" style="margin-bottom: 32px;">
+        ~/overture &nbsp;·&nbsp; 2026 &nbsp;·&nbsp; a field recording
+      </div>
+      <h1 class="disp" id="h0" style="margin: 0;">
+        <span class="ghost">wire</span><span class="dim">/</span><span>ml</span><span class="caret"></span>
+      </h1>
+      <div style="margin-top: 40px; display: flex; gap: 48px; flex-wrap: wrap;
+        font-size: 13px; color: #6c7a8c; font-family: var(--font-mono);">
+        <span>a graph of intentions, not models</span>
+        <span>— drag the wires</span>
+        <span>— watch it think</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════ 01 ═══════════════════════════ -->
+<section class="stage tall" id="c1">
+  <div class="pin">
+    <div class="art">
+      <svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+        <!-- dense field of wires that bend toward cursor -->
+        <g id="field"></g>
+      </svg>
+    </div>
+    <div style="position: relative; z-index: 2; text-align: center; padding: 0 24px;">
+      <div class="eye" style="margin-bottom: 28px;">chapter_01 — the wires remember</div>
+      <h2 class="disp" style="font-size: clamp(3rem, 10vw, 11rem); margin: 0;">
+        every<br><span class="ghost">connection</span><br>is a <span class="lit">choice</span>.
+      </h2>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════ 02 ═══════════════════════════ -->
+<section class="stage tall" id="c2">
+  <div class="pin">
+    <div class="art">
+      <svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+        <g id="graph" stroke="#2a2f37" fill="none"></g>
+        <g id="graphLit" stroke="#9effc8" fill="none"
+           style="filter: drop-shadow(0 0 4px rgba(158,255,200,0.4))"></g>
+      </svg>
+    </div>
+    <div style="position: relative; z-index: 2; padding: 0 8vw; width: 100%;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center;">
+      <div>
+        <div class="eye" style="margin-bottom: 24px;">chapter_02 — the graph</div>
+        <h2 class="disp" style="font-size: clamp(3rem, 8vw, 8rem); margin: 0; line-height: 0.9;">
+          nodes<br>over<br><span class="ghost">notebooks</span>.
+        </h2>
+      </div>
+      <div style="font-family: var(--font-mono); font-size: 13px;
+        color: #8a94a3; line-height: 1.8; max-width: 420px;">
+        <div style="color: #e5ecf4; margin-bottom: 16px;">
+          &gt; a pipeline is a document you can <em style="color: #9effc8; font-style: normal;">walk through</em>.
+        </div>
+        every node writes its own receipt. every wire carries a<br>
+        typed shape. nothing is hidden in a cell six scrolls ago.
+        <div style="margin-top: 28px; border-left: 1px solid #2a2f37;
+          padding-left: 14px; color: #6c7a8c;">
+          webcam → preprocess → backbone → head → eval → deploy<span class="caret" style="height: 0.9em"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════ 03 ═══════════════════════════ -->
+<section class="stage" id="c3" style="overflow: hidden;">
+  <div class="pin" style="flex-direction: column; gap: 40px;">
+    <div class="eye">chapter_03 — signal</div>
+    <div style="width: 100%;">
+      <div class="marquee">
+        training.  evaluating.  deploying.  training.  evaluating.  deploying. &nbsp;
+        training.  evaluating.  deploying.  training.  evaluating.  deploying. &nbsp;
+      </div>
+    </div>
+    <div style="font-family: var(--font-mono); font-size: 13px;
+      color: #6c7a8c; max-width: 640px; text-align: center; padding: 0 24px;">
+      you are listening to a neural network. the carrier is a dataset,<br>
+      the modulation is gradient. the receiver is you, holding a wire.
+    </div>
+    <div style="width: 100%; margin-top: 40px;">
+      <svg viewBox="0 0 1600 220" preserveAspectRatio="none" style="width: 100%; height: 180px;">
+        <path id="wave" class="stroke" stroke-width="1.2" d=""/>
+        <path id="wave2" class="stroke d" stroke-width="1" d=""/>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════ 04 ═══════════════════════════ -->
+<section class="stage tall" id="c4">
+  <div class="pin">
+    <div class="art">
+      <svg viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+        <!-- converging rays -->
+        <g id="rays" stroke="#2a2f37" fill="none" stroke-width="0.8"></g>
+        <circle cx="800" cy="450" r="3" fill="#9effc8"
+          style="filter: drop-shadow(0 0 10px rgba(158,255,200,0.8))"/>
+      </svg>
+    </div>
+    <div style="position: relative; z-index: 2; text-align: center; padding: 0 24px;">
+      <div class="eye" style="margin-bottom: 28px;">chapter_04 — ship it</div>
+      <h2 class="disp" style="font-size: clamp(3rem, 10vw, 10rem); margin: 0;">
+        <span class="ghost">press</span> run.
+      </h2>
+      <div style="margin-top: 48px; font-family: var(--font-mono); font-size: 13px;
+        color: #8a94a3; max-width: 520px; margin-left: auto; margin-right: auto;">
+        the graph compiles to python. the python compiles to onnx.<br>
+        the onnx compiles to a url. the url is yours.
+      </div>
+      <div style="margin-top: 56px; display: inline-flex; gap: 14px;">
+        <a href="#" style="display: inline-flex; align-items: center; gap: 10px;
+          padding: 10px 18px; border: 1px solid #9effc8; color: #9effc8;
+          text-decoration: none; font-family: var(--font-mono); font-size: 12px;
+          letter-spacing: 0.08em; text-transform: uppercase;
+          box-shadow: 0 0 0 1px #9effc8 inset, 0 0 12px rgba(158,255,200,0.2);">
+          &gt; open_demo<span class="caret" style="height: 0.9em"></span>
+        </a>
+        <a href="#" style="display: inline-flex; align-items: center; gap: 10px;
+          padding: 10px 18px; border: 1px solid #2a3240; color: #e5ecf4;
+          text-decoration: none; font-family: var(--font-mono); font-size: 12px;
+          letter-spacing: 0.08em; text-transform: uppercase;">
+          $ read_the_docs
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="sig">end&nbsp;of&nbsp;score.</div>
+  <div>wire/ml · a graph of intentions · not affiliated · made quietly</div>
+</footer>
+
+<script>
+(() => {
+  // ── FIELD (chapter 01): generate a grid of short wires ─────────
+  const field = document.getElementById('field');
+  const COLS = 32, ROWS = 18;
+  const wires = [];
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const x = (c + 0.5) * (1600 / COLS);
+      const y = (r + 0.5) * (900 / ROWS);
+      const p = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      p.setAttribute('x1', x - 12); p.setAttribute('y1', y);
+      p.setAttribute('x2', x + 12); p.setAttribute('y2', y);
+      p.setAttribute('stroke', '#1a1d22');
+      p.setAttribute('stroke-width', '1');
+      p.setAttribute('stroke-linecap', 'round');
+      field.appendChild(p);
+      wires.push({ el: p, x, y });
+    }
+  }
+
+  // ── GRAPH (chapter 02): random DAG-ish cluster ─────────────────
+  const g = document.getElementById('graph');
+  const gLit = document.getElementById('graphLit');
+  const NODES = [];
+  const rng = (() => { let s = 7; return () => (s = (s * 9301 + 49297) % 233280) / 233280; })();
+  const cols = 7;
+  for (let i = 0; i < cols; i++) {
+    const count = 1 + Math.floor(rng() * 3);
+    for (let j = 0; j < count; j++) {
+      NODES.push({
+        x: 200 + i * 180 + (rng() - 0.5) * 40,
+        y: 200 + j * 150 + (rng() - 0.5) * 80 + (i % 2) * 60,
+        col: i,
+      });
+    }
+  }
+  // edges: connect to 1-2 nodes in the next column
+  const edges = [];
+  NODES.forEach((n, idx) => {
+    const next = NODES.filter(m => m.col === n.col + 1);
+    next.slice(0, 1 + Math.floor(rng() * 2)).forEach(m => edges.push([n, m, idx]));
+  });
+  edges.forEach(([a, b, idx]) => {
+    const mx = (a.x + b.x) / 2;
+    const dashed = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    dashed.setAttribute('d', `M${a.x},${a.y} C${mx},${a.y} ${mx},${b.y} ${b.x},${b.y}`);
+    dashed.setAttribute('stroke-width', '1');
+    g.appendChild(dashed);
+    // lit copy (stroke-dasharray animated via scroll)
+    const lit = dashed.cloneNode();
+    lit.setAttribute('stroke-width', '1.2');
+    lit.dataset.idx = idx;
+    gLit.appendChild(lit);
+  });
+  NODES.forEach(n => {
+    const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    c.setAttribute('cx', n.x); c.setAttribute('cy', n.y); c.setAttribute('r', 4);
+    c.setAttribute('fill', '#050508');
+    c.setAttribute('stroke', '#6c7a8c');
+    c.setAttribute('stroke-width', '1');
+    g.appendChild(c);
+  });
+
+  // ── RAYS (chapter 04) ──────────────────────────────────────────
+  const rays = document.getElementById('rays');
+  for (let i = 0; i < 48; i++) {
+    const a = (i / 48) * Math.PI * 2;
+    const x1 = 800 + Math.cos(a) * 60;
+    const y1 = 450 + Math.sin(a) * 60;
+    const x2 = 800 + Math.cos(a) * 900;
+    const y2 = 450 + Math.sin(a) * 900;
+    const l = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    l.setAttribute('x1', x1); l.setAttribute('y1', y1);
+    l.setAttribute('x2', x2); l.setAttribute('y2', y2);
+    rays.appendChild(l);
+  }
+
+  // ── Waveform (chapter 03) ──────────────────────────────────────
+  const wave = document.getElementById('wave');
+  const wave2 = document.getElementById('wave2');
+  const drawWave = (offset, amp, freq, el) => {
+    const pts = [];
+    for (let x = 0; x <= 1600; x += 6) {
+      const y = 110 + Math.sin(x * freq + offset) * amp * (0.5 + 0.5 * Math.sin(x * 0.003 + offset * 0.5));
+      pts.push(`${x},${y.toFixed(1)}`);
+    }
+    el.setAttribute('d', 'M' + pts.join(' L'));
+  };
+
+  // ── Mouse + scroll state ───────────────────────────────────────
+  let mx = 800, my = 450, targetScroll = 0;
+  let lastT = performance.now(), fps = 60;
+  window.addEventListener('pointermove', e => {
+    mx = (e.clientX / window.innerWidth) * 1600;
+    my = (e.clientY / window.innerHeight) * 900;
+    document.getElementById('coord').textContent =
+      `lat  ${(48 + (e.clientY / window.innerHeight - 0.5) * 4).toFixed(3)} / lon  ${((e.clientX / window.innerWidth - 0.5) * 8).toFixed(3)}`;
+  });
+
+  const rail = [...document.querySelectorAll('.rail .r')];
+  const stages = [...document.querySelectorAll('section.stage')];
+
+  function loop(t) {
+    const dt = t - lastT; lastT = t;
+    fps = fps * 0.9 + (1000 / Math.max(1, dt)) * 0.1;
+    document.getElementById('fps').textContent = Math.round(fps).toString().padStart(2, '0');
+
+    const scrollMax = document.body.scrollHeight - window.innerHeight;
+    const sp = scrollMax > 0 ? window.scrollY / scrollMax : 0;
+    document.getElementById('prog').style.width = (sp * 100) + '%';
+    document.getElementById('pct').textContent = Math.floor(sp * 100).toString().padStart(3, '0');
+
+    // chapter detection: which stage's top is nearest
+    let active = 0, best = Infinity;
+    stages.forEach((s, i) => {
+      const r = s.getBoundingClientRect();
+      const d = Math.abs(r.top - window.innerHeight * 0.4);
+      if (d < best) { best = d; active = i; }
+    });
+    rail.forEach((r, i) => r.classList.toggle('on', i === active));
+
+    // ── ch01 wire field reacts to cursor + scroll ───
+    const kick = t * 0.0006;
+    wires.forEach(w => {
+      const dx = w.x - mx, dy = w.y - my;
+      const dist = Math.hypot(dx, dy);
+      const falloff = Math.max(0, 1 - dist / 400);
+      const theta = Math.atan2(dy, dx) + Math.sin(kick + w.x * 0.004 + w.y * 0.004) * 0.3;
+      const len = 12 + falloff * 24;
+      const cx = w.x, cy = w.y;
+      w.el.setAttribute('x1', cx - Math.cos(theta) * len);
+      w.el.setAttribute('y1', cy - Math.sin(theta) * len);
+      w.el.setAttribute('x2', cx + Math.cos(theta) * len);
+      w.el.setAttribute('y2', cy + Math.sin(theta) * len);
+      const lit = falloff > 0.3;
+      w.el.setAttribute('stroke', lit ? '#9effc8' : '#1a1d22');
+      w.el.setAttribute('stroke-width', lit ? 1.2 : 1);
+    });
+
+    // ── ch02 graph: light edges progressively across ch02 progress ─
+    const ch02 = stages[2].getBoundingClientRect();
+    const cp = Math.max(0, Math.min(1,
+      (window.innerHeight * 0.5 - ch02.top) / (ch02.height * 0.7)));
+    const litCount = Math.floor(cp * edges.length);
+    [...gLit.children].forEach((p, i) => {
+      p.style.opacity = i < litCount ? 1 : 0;
+      p.style.transition = 'opacity 180ms';
+    });
+
+    // ── ch03 wave phase from scroll ──
+    drawWave(t * 0.002 + sp * 12, 60, 0.012, wave);
+    drawWave(t * 0.001 + sp * 8, 36, 0.007, wave2);
+
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
