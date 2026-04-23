@@ -1,17 +1,15 @@
-"""Top-level Textual application."""
+"""Top-level Textual application. Boots into a splash, then the dashboard."""
 from __future__ import annotations
 
 from textual.app import App
 
-from wireml.tui.screens.home import HomeScreen
-
 
 class WireMLApp(App):
-    """`wireml` — terminal workbench."""
+    """wire/ml — animated terminal workbench."""
 
     CSS_PATH = "app.tcss"
-    TITLE = "WireML"
-    SUB_TITLE = "no-code ML classifier · foundation models · GPU-aware"
+    TITLE = "wire/ml"
+    SUB_TITLE = "no-code ml · foundation models · terminal native"
 
     BINDINGS = [
         ("q", "quit", "Quit"),
@@ -19,9 +17,10 @@ class WireMLApp(App):
     ]
 
     def on_mount(self) -> None:
-        # Defer runner registration — the pipeline screen imports it lazily.
-        # This keeps `wireml` -> dashboard snappy (no numpy/torch import cost).
-        self.push_screen(HomeScreen())
+        # Splash plays a 2s boot sequence, then auto-switches to the dashboard.
+        from wireml.tui.screens.splash import SplashScreen
+
+        self.push_screen(SplashScreen())
 
     def action_help(self) -> None:
         self.notify(
