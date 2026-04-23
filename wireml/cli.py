@@ -1,7 +1,7 @@
 """`wireml` command-line entry.
 
-Default behavior launches the TUI. Subcommands expose headless paths for
-scripting and CI.
+Heavy imports (textual, torch, transformers, cv2) are deferred to inside
+command bodies so simple queries like `wireml version` return in <100ms.
 """
 from __future__ import annotations
 
@@ -33,6 +33,7 @@ app = typer.Typer(
 def default(ctx: typer.Context) -> None:
     """Launch the TUI if no subcommand was given."""
     if ctx.invoked_subcommand is None:
+        # Deferred — textual + its deps only imported when you actually need them.
         from wireml.tui.app import WireMLApp
 
         WireMLApp().run()
@@ -67,17 +68,71 @@ def templates() -> None:
         typer.echo(f"                     {t.subtitle}")
 
 
+@app.command()
+def doctor() -> None:
+    """Health check — tooling, GPUs, optional extras, model caches."""
+    import importlib.util
+    from pathlib import Path
+
+    def check(label: str, ok: bool, detail: str = "") -> None:
+        mark = "✓" if ok else "✗"
+        color = typer.colors.GREEN if ok else typer.colors.RED
+        typer.secho(f"{mark} {label:<28}", fg=color, nl=False)
+        typer.echo(detail)
+
+    typer.secho("WireML · doctor\n", fg=typer.colors.MAGENTA, bold=True)
+
+    # Core
+    from wireml import __version__ as version_
+
+    check("wireml", True, f"v{version_}")
+    check("python", True, sys.version.split()[0])
+
+    # Device
+    from wireml.device import detect_device
+
+    info = detect_device()
+    detail = info.name
+    if info.vram_gb is not None:
+        detail += f" · {info.vram_gb} GB"
+    check(f"device: {info.type}", True, detail)
+
+    # Optional extras
+    for mod, extra in [
+        ("cv2", "webcam"),
+        ("pynput", "webcam"),
+        ("torch", "ml"),
+        ("transformers", "ml"),
+        ("mlx", "mlx"),
+    ]:
+        present = importlib.util.find_spec(mod) is not None
+        check(
+            f"{mod}",
+            present,
+            ("" if present else f"missing — `uv tool install 'wireml[{extra}]'`"),
+        )
+
+    # CLIP cache
+    hf_cache = Path.home() / ".cache" / "huggingface" / "hub"
+    if hf_cache.exists():
+        clip_dir = hf_cache / "models--openai--clip-vit-base-patch32"
+        check("clip cached", clip_dir.exists(), str(clip_dir) if clip_dir.exists() else "run a webcam demo once to download")
+    else:
+        check("clip cached", False, "no HF cache directory yet")
+
+    # Capture sessions
+    cap_dir = Path.home() / ".wireml" / "captures"
+    sessions = sorted(cap_dir.glob("*")) if cap_dir.exists() else []
+    check("capture sessions", bool(sessions), f"{len(sessions)} session(s)")
+
+
 demo_app = typer.Typer(help="Interactive end-to-end demos (webcam, etc).")
 app.add_typer(demo_app, name="demo")
 
 
 @demo_app.command("camera-check")
 def demo_camera_check() -> None:
-    """Probe every camera index 0–3 and report backend + resolution + fps.
-
-    Use when the webcam demo looks blurry or fails to open — the results
-    tell you which --camera index and which backend your host prefers.
-    """
+    """Probe every camera index 0–3 and report backend + resolution + fps."""
     try:
         import cv2
     except ImportError as exc:  # pragma: no cover
@@ -138,16 +193,7 @@ def demo_webcam(
     height: int = typer.Option(1080, "--height", help="Target capture height."),
     verbose: bool = typer.Option(False, "--verbose", "-v"),
 ) -> None:
-    """Teachable-Machine-style webcam demo.
-
-    Opens your webcam. HOLD SPACE to stream frames into the current class
-    (release to stop). Press N to advance to the next class. After all
-    classes are captured, trains a CLIP-based linear classifier and opens a
-    live prediction window.
-
-    Example:
-        wireml demo webcam with-phone without-phone
-    """
+    """Teachable-Machine-style webcam demo with ROI crop + live inference."""
     logging.basicConfig(
         level=logging.DEBUG if verbose else logging.INFO,
         format="%(asctime)s %(levelname)-7s %(name)s: %(message)s",

@@ -1,46 +1,117 @@
 #!/usr/bin/env bash
-# WireML one-line installer.
+# WireML — one-line installer.
 #
 #   curl -fsSL https://raw.githubusercontent.com/tejasnaladala/wireml/main/install.sh | sh
 #
-# Installs uv (if missing) and then `uv tool install git+https://github.com/tejasnaladala/wireml`.
-# The `wireml` command lands on your PATH. Re-run to upgrade.
+# Installs uv (if missing), then `uv tool install git+https://github.com/tejasnaladala/wireml`
+# with the full ml + webcam extras so `wireml demo webcam ...` works out of the box.
+#
+# Env knobs:
+#   WIREML_EXTRAS   comma list of extras to install (default: "ml,webcam")
+#   WIREML_REPO     override the git URL (for forks)
+#   WIREML_REF      pin to a tag/branch/sha (e.g. WIREML_REF=v0.2.0)
 set -euo pipefail
 
 REPO_URL="${WIREML_REPO:-https://github.com/tejasnaladala/wireml}"
-EXTRAS="${WIREML_EXTRAS:-}"   # e.g. `ml` for CLIP/DINOv2, or `ml,mlx` on Apple Silicon.
+REF="${WIREML_REF:-}"
+EXTRAS="${WIREML_EXTRAS:-ml,webcam}"
 
-info() { printf '\033[1;35m==>\033[0m %s\n' "$*"; }
-warn() { printf '\033[1;33m==>\033[0m %s\n' "$*" >&2; }
-die()  { printf '\033[1;31m!!\033[0m %s\n' "$*" >&2; exit 1; }
+# ─── pretty output ──────────────────────────────────────────────────────────
+if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
+  readonly LAV=$'\033[38;5;141m'
+  readonly DIM=$'\033[2m'
+  readonly BOLD=$'\033[1m'
+  readonly RED=$'\033[31m'
+  readonly GRN=$'\033[32m'
+  readonly YEL=$'\033[33m'
+  readonly RST=$'\033[0m'
+else
+  readonly LAV="" DIM="" BOLD="" RED="" GRN="" YEL="" RST=""
+fi
 
-# 1. uv — the modern Python package installer. Idempotent.
+banner() {
+  cat <<BANNER
+${LAV}${BOLD}
+    ▮▮   wire/ml
+${RST}${DIM}    teachable machine for the foundation-model era${RST}
+${DIM}    ────────────────────────────────────────────────${RST}
+BANNER
+}
+
+step()  { printf '%s▶%s  %s\n' "$LAV"  "$RST" "$*"; }
+ok()    { printf '%s✓%s  %s\n' "$GRN"  "$RST" "$*"; }
+warn()  { printf '%s!%s  %s\n' "$YEL"  "$RST" "$*" >&2; }
+die()   { printf '%s✗%s  %s\n' "$RED"  "$RST" "$*" >&2; exit 1; }
+
+# ─── detect environment ────────────────────────────────────────────────────
+banner
+
+UNAME="$(uname -s 2>/dev/null || echo Unknown)"
+case "$UNAME" in
+  Linux*)   PLATFORM=linux  ;;
+  Darwin*)  PLATFORM=macos  ;;
+  MINGW*|MSYS*|CYGWIN*) PLATFORM=windows ;;
+  *)        PLATFORM=other ;;
+esac
+step "platform ${BOLD}${PLATFORM}${RST}   ${DIM}extras: ${EXTRAS}${RST}"
+
+# ─── 1. uv ─────────────────────────────────────────────────────────────────
 if ! command -v uv >/dev/null 2>&1; then
-  info "Installing uv (https://astral.sh/uv)…"
+  step "installing uv (astral.sh/uv) — one-time"
   curl -LsSf https://astral.sh/uv/install.sh | sh
-  # shellcheck source=/dev/null
-  [ -f "$HOME/.local/bin/env" ] && . "$HOME/.local/bin/env" || true
-  [ -f "$HOME/.cargo/env" ] && . "$HOME/.cargo/env" || true
+  # Source uv's env file so it's on PATH for the rest of this script.
+  if [ -f "$HOME/.local/bin/env" ]; then
+    # shellcheck source=/dev/null
+    . "$HOME/.local/bin/env"
+  fi
+  if [ -f "$HOME/.cargo/env" ]; then
+    # shellcheck source=/dev/null
+    . "$HOME/.cargo/env"
+  fi
   export PATH="$HOME/.local/bin:$PATH"
-  command -v uv >/dev/null 2>&1 || die "uv install didn't expose the binary on PATH"
+  command -v uv >/dev/null 2>&1 || die "uv not on PATH after install — reopen your shell and re-run."
+  ok "uv installed"
+else
+  ok "uv $(uv --version | awk '{print $2}') already present"
 fi
 
-# 2. install WireML as a uv tool (global, isolated virtualenv).
-TARGET="git+${REPO_URL}"
+# ─── 2. wireml ─────────────────────────────────────────────────────────────
+SOURCE="git+${REPO_URL}"
+if [ -n "$REF" ]; then
+  SOURCE="${SOURCE}@${REF}"
+fi
+
+EXTRAS_ARGS=""
 if [ -n "$EXTRAS" ]; then
-  TARGET="wireml[${EXTRAS}] @ ${TARGET#git+}"
-  info "Installing wireml[${EXTRAS}] from ${REPO_URL}…"
-  uv tool install --force "$TARGET" --from "git+${REPO_URL}"
-else
-  info "Installing wireml from ${REPO_URL}…"
-  uv tool install --force "$TARGET"
+  # Split by comma, prepend --with each.
+  OLD_IFS="$IFS"
+  IFS=','
+  for extra in $EXTRAS; do
+    EXTRAS_ARGS="$EXTRAS_ARGS --with wireml[$extra]"
+  done
+  IFS="$OLD_IFS"
 fi
 
-# 3. sanity.
+step "installing wireml from ${DIM}${REPO_URL}${RST}"
+# shellcheck disable=SC2086
+uv tool install --force $EXTRAS_ARGS "$SOURCE"
+
+# ─── 3. sanity ─────────────────────────────────────────────────────────────
 if ! command -v wireml >/dev/null 2>&1; then
-  warn "'wireml' not on PATH. Ensure \$HOME/.local/bin is in your PATH and reopen your shell."
-else
-  info "Installed. Launch with:   wireml"
-  info "                          wireml device"
-  info "                          wireml run demo-synthetic"
+  warn "'wireml' not on PATH. Ensure \$HOME/.local/bin is exported in your shell rc."
+  warn "   e.g. echo 'export PATH=\"\$HOME/.local/bin:\$PATH\"' >> ~/.bashrc"
+  exit 0
 fi
+
+VERSION=$(wireml version 2>/dev/null || echo "unknown")
+ok "${VERSION} installed"
+
+cat <<DONE
+
+${BOLD}try it now${RST}
+  ${LAV}wireml${RST}                                   ${DIM}launch the dashboard${RST}
+  ${LAV}wireml doctor${RST}                            ${DIM}health check${RST}
+  ${LAV}wireml demo webcam with-phone without-phone${RST}   ${DIM}train live${RST}
+
+${DIM}docs: ${REPO_URL}${RST}
+DONE

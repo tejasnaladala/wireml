@@ -1,4 +1,5 @@
-/* WireML terminal theme — dark, tight, single-accent. */
+/* WireML dashboard — dark, tight, single-accent. Rules below scaled for a
+   1920x1080 terminal but degrade gracefully on smaller windows. */
 
 Screen {
   background: #0a0e14;
@@ -6,28 +7,61 @@ Screen {
 }
 
 Header {
-  background: #131921;
+  background: #0a0e14;
   color: #e5ecf4;
   border-bottom: solid #2a3240;
+  height: 1;
+  padding: 0 2;
 }
 
 Footer {
-  background: #131921;
+  background: #0a0e14;
   color: #6c7a8c;
   border-top: solid #2a3240;
 }
 
-#app-grid {
+/* Layout */
+
+#dash-root {
+  layout: vertical;
+  background: #0a0e14;
+}
+
+.hero {
+  padding: 2 4 1 4;
+  background: #0a0e14;
+  height: auto;
+}
+
+.hero-brand {
+  color: #8b5cf6;
+  text-style: bold;
+}
+
+.hero-title {
+  text-style: bold;
+  color: #e5ecf4;
+  padding-top: 1;
+}
+
+.hero-sub {
+  color: #6c7a8c;
+  padding-bottom: 1;
+}
+
+.dash-grid {
   layout: horizontal;
   height: 1fr;
+  padding: 0 2 1 2;
 }
 
 .panel {
   background: #131921;
-  border: solid #2a3240;
+  border: round #2a3240;
   padding: 1 2;
   margin: 0 1;
   height: 1fr;
+  overflow-y: auto;
 }
 
 .panel-title {
@@ -36,51 +70,197 @@ Footer {
   margin-bottom: 1;
 }
 
-.accent {
-  color: #8b5cf6;
+.col-train { width: 2fr; }
+.col-side  { width: 1fr; }
+
+.row-stat {
+  height: auto;
+  margin-bottom: 1;
 }
 
-.muted {
+/* Training tiles */
+
+.tiles {
+  layout: grid;
+  grid-size: 2 4;
+  grid-gutter: 1 2;
+  height: 100%;
+}
+
+.tile {
+  background: #0a0e14;
+  border: round #2a3240;
+  padding: 1 2;
+  height: 7;
+  content-align: left middle;
+  color: #e5ecf4;
+}
+
+.tile:hover, .tile.-active {
+  border: round #8b5cf6;
+  background: #1a222d;
+}
+
+.tile-cat {
+  color: #6c7a8c;
+  text-style: bold;
+}
+
+.tile-title {
+  color: #e5ecf4;
+  text-style: bold;
+  padding: 1 0 0 0;
+}
+
+.tile-sub {
   color: #6c7a8c;
 }
 
-.success { color: #10b981; }
-.warn    { color: #f59e0b; }
-.error   { color: #ef4444; }
-.data    { color: #10b981; }
-.backbone { color: #3b82f6; }
-.head    { color: #f59e0b; }
-.eval    { color: #ef4444; }
-.deploy  { color: #14b8a6; }
-.preprocess { color: #8b5cf6; }
+/* category color stripes */
+.tile.-data     { border-left: thick #10b981; }
+.tile.-backbone { border-left: thick #3b82f6; }
+.tile.-head     { border-left: thick #f59e0b; }
+.tile.-eval     { border-left: thick #ef4444; }
+.tile.-deploy   { border-left: thick #14b8a6; }
+.tile.-demo     { border-left: thick #8b5cf6; }
+
+/* Device / status chip */
+
+.chip {
+  background: #0a0e14;
+  border: round #2a3240;
+  padding: 0 2;
+  height: 3;
+  color: #e5ecf4;
+  margin-bottom: 1;
+  content-align: left middle;
+}
+
+.chip-cuda     { border: round #3b82f6; color: #3b82f6; }
+.chip-mlx      { border: round #8b5cf6; color: #8b5cf6; }
+.chip-mps      { border: round #8b5cf6; color: #8b5cf6; }
+.chip-directml { border: round #f59e0b; color: #f59e0b; }
+.chip-rocm     { border: round #ef4444; color: #ef4444; }
+.chip-xpu      { border: round #10b981; color: #10b981; }
+.chip-cpu      { border: round #6c7a8c; color: #6c7a8c; }
+
+.chip-label {
+  color: #6c7a8c;
+  text-style: bold;
+}
+
+/* Status list */
+
+.status-line {
+  color: #e5ecf4;
+  padding-left: 1;
+}
+
+.ok  { color: #10b981; }
+.warn { color: #f59e0b; }
+.err { color: #ef4444; }
+.muted { color: #6c7a8c; }
+
+/* Sessions list */
 
 ListView {
-  background: #0a0e14;
+  background: #131921;
   border: none;
+  height: auto;
+  margin-top: 0;
 }
 
 ListItem {
-  background: #131921;
-  padding: 0 1;
-  margin-bottom: 1;
-  border: solid #2a3240;
+  background: #0a0e14;
+  padding: 0 2;
+  margin-bottom: 0;
+  border: none;
+  height: 3;
+  content-align: left middle;
 }
 
 ListItem.-highlight {
-  border: solid #8b5cf6;
   background: #1a222d;
+  border-left: thick #8b5cf6;
+}
+
+.session-title { color: #e5ecf4; text-style: bold; }
+.session-meta  { color: #6c7a8c; }
+
+/* Pipeline screen */
+
+#pipeline-root {
+  layout: vertical;
+  background: #0a0e14;
+}
+
+.pipeline-header {
+  padding: 1 4;
+  background: #0a0e14;
+  border-bottom: solid #2a3240;
+  height: auto;
+}
+
+.pipeline-grid {
+  layout: horizontal;
+  height: 1fr;
+  padding: 0 2;
+}
+
+.stages {
+  background: #131921;
+  border: round #2a3240;
+  padding: 1 2;
+  margin: 1;
+}
+
+.stage-row {
+  height: 3;
+  padding: 0 1;
+  color: #e5ecf4;
+}
+
+.stage-running { color: #f59e0b; text-style: bold; }
+.stage-ok      { color: #10b981; }
+.stage-error   { color: #ef4444; }
+
+RichLog {
+  background: #0a0e14;
+  color: #e5ecf4;
+  border: round #2a3240;
+  padding: 1 2;
+  scrollbar-gutter: stable;
 }
 
 DataTable {
   background: #131921;
   color: #e5ecf4;
+  height: auto;
 }
 
 DataTable > .datatable--header {
-  background: #1a222d;
+  background: #0a0e14;
   color: #6c7a8c;
   text-style: bold;
 }
+
+/* Modal (pop-up) */
+
+#modal-backdrop {
+  background: rgba(0,0,0,0.72);
+  align: center middle;
+}
+
+#modal {
+  background: #131921;
+  border: round #8b5cf6;
+  padding: 2 3;
+  width: 80%;
+  max-width: 80;
+  height: auto;
+}
+
+/* Buttons */
 
 Button {
   background: #1a222d;
@@ -95,22 +275,8 @@ Button.-primary {
   text-style: bold;
 }
 
-RichLog {
-  background: #0a0e14;
-  color: #e5ecf4;
-  border: solid #2a3240;
-  padding: 1 2;
-}
-
-.device-chip {
-  color: #3b82f6;
-  text-style: bold;
-  padding: 0 2;
-}
-
-.category-dot {
-  padding: 0 1;
-  text-style: bold;
+Button:focus {
+  border: round #8b5cf6;
 }
 
 .kbd {
