@@ -1,0 +1,119 @@
+/* WireML terminal theme — dark, tight, single-accent. */
+
+Screen {
+  background: #0a0e14;
+  color: #e5ecf4;
+}
+
+Header {
+  background: #131921;
+  color: #e5ecf4;
+  border-bottom: solid #2a3240;
+}
+
+Footer {
+  background: #131921;
+  color: #6c7a8c;
+  border-top: solid #2a3240;
+}
+
+#app-grid {
+  layout: horizontal;
+  height: 1fr;
+}
+
+.panel {
+  background: #131921;
+  border: solid #2a3240;
+  padding: 1 2;
+  margin: 0 1;
+  height: 1fr;
+}
+
+.panel-title {
+  color: #6c7a8c;
+  text-style: bold;
+  margin-bottom: 1;
+}
+
+.accent {
+  color: #8b5cf6;
+}
+
+.muted {
+  color: #6c7a8c;
+}
+
+.success { color: #10b981; }
+.warn    { color: #f59e0b; }
+.error   { color: #ef4444; }
+.data    { color: #10b981; }
+.backbone { color: #3b82f6; }
+.head    { color: #f59e0b; }
+.eval    { color: #ef4444; }
+.deploy  { color: #14b8a6; }
+.preprocess { color: #8b5cf6; }
+
+ListView {
+  background: #0a0e14;
+  border: none;
+}
+
+ListItem {
+  background: #131921;
+  padding: 0 1;
+  margin-bottom: 1;
+  border: solid #2a3240;
+}
+
+ListItem.-highlight {
+  border: solid #8b5cf6;
+  background: #1a222d;
+}
+
+DataTable {
+  background: #131921;
+  color: #e5ecf4;
+}
+
+DataTable > .datatable--header {
+  background: #1a222d;
+  color: #6c7a8c;
+  text-style: bold;
+}
+
+Button {
+  background: #1a222d;
+  color: #e5ecf4;
+  border: none;
+  margin: 0 1;
+}
+
+Button.-primary {
+  background: #8b5cf6;
+  color: white;
+  text-style: bold;
+}
+
+RichLog {
+  background: #0a0e14;
+  color: #e5ecf4;
+  border: solid #2a3240;
+  padding: 1 2;
+}
+
+.device-chip {
+  color: #3b82f6;
+  text-style: bold;
+  padding: 0 2;
+}
+
+.category-dot {
+  padding: 0 1;
+  text-style: bold;
+}
+
+.kbd {
+  color: #8b5cf6;
+  text-style: bold;
+}
