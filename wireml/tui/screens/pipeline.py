@@ -9,6 +9,7 @@ from textual.reactive import reactive
 from textual.screen import Screen
 from textual.widgets import DataTable, Footer, Header, Label, RichLog, Static
 
+import wireml.nodes  # noqa: F401 — registers runners (imports numpy + lightweight deps)
 from wireml.engine import engine
 from wireml.registry import get_schema
 from wireml.schema import Pipeline, StageState

@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from textual.app import App
 
-import wireml.nodes  # noqa: F401 — registers runners with the engine
 from wireml.tui.screens.home import HomeScreen
 
 
@@ -12,7 +11,7 @@ class WireMLApp(App):
 
     CSS_PATH = "app.tcss"
     TITLE = "WireML"
-    SUB_TITLE = "node-graph ML on foundation models — terminal edition"
+    SUB_TITLE = "no-code ML classifier · foundation models · GPU-aware"
 
     BINDINGS = [
         ("q", "quit", "Quit"),
@@ -20,12 +19,13 @@ class WireMLApp(App):
     ]
 
     def on_mount(self) -> None:
+        # Defer runner registration — the pipeline screen imports it lazily.
+        # This keeps `wireml` -> dashboard snappy (no numpy/torch import cost).
         self.push_screen(HomeScreen())
 
     def action_help(self) -> None:
-        self.bell()
         self.notify(
-            "Navigate: ↑↓ · Enter to open · Tab between panels · q to quit",
-            title="Help",
+            "↑↓ navigate · Enter launch · d doctor · r quick demo · q quit",
+            title="shortcuts",
             timeout=5,
         )
