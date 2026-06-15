@@ -48,6 +48,23 @@ def _demo_synthetic() -> Pipeline:
     )
 
 
+def _export_onnx() -> Pipeline:
+    return Pipeline(
+        name="Train + export ONNX",
+        description="Train a linear head on synthetic features, then export it to ONNX.",
+        classes=["alpha", "beta", "gamma"],
+        stages=[
+            StageState(
+                schema_id="data.synthetic",
+                params={"num_per_class": 40, "num_classes": 3, "feature_dim": 16},
+            ),
+            StageState(schema_id="backbone.identity", params={}),
+            StageState(schema_id="head.linear", params={"epochs": 120, "learning_rate": 0.1}),
+            StageState(schema_id="deploy.export-onnx", params={"filename": "wireml-model.onnx"}),
+        ],
+    )
+
+
 def _knn_zero_train() -> Pipeline:
     return Pipeline(
         name="k-NN (no training)",
@@ -83,6 +100,13 @@ TEMPLATES: tuple[Template, ...] = (
         subtitle="Skip gradient descent. k-NN at inference.",
         tags=("beginner", "knn", "offline"),
         build=_knn_zero_train,
+    ),
+    Template(
+        slug="export-onnx",
+        title="Train + export ONNX",
+        subtitle="Train a linear head, then serialize it to ONNX. Needs `wireml[deploy]`.",
+        tags=("deploy", "onnx"),
+        build=_export_onnx,
     ),
 )
 

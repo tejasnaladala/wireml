@@ -1,7 +1,7 @@
 """Data types for nodes, pipelines, and execution results.
 
-Pure Python — no TypeScript mirror any more. The TUI doesn't need JSON
-interop with a browser client.
+Plain Python dataclasses, frozen where they describe static schema so a
+runner can't mutate the catalog out from under the engine.
 """
 from __future__ import annotations
 

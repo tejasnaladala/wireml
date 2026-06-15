@@ -131,12 +131,14 @@ NODE_SCHEMAS: tuple[NodeSchema, ...] = (
         id="deploy.export-onnx",
         name="Export ONNX",
         category="deploy",
-        description="Serialize the trained head to ONNX.",
+        description="Serialize a trained linear head to ONNX. Needs `wireml[deploy]`.",
         inputs=(Port("model", "model"),),
+        outputs=(Port("export", "export"),),
         params=(
             ParamSpec("filename", "string", default="wireml-model.onnx"),
             ParamSpec("opset", "number", default=17, min=11, max=20),
         ),
+        capability=Capability(local_only=True),
     ),
 )
 

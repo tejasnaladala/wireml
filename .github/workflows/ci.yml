@@ -27,7 +27,7 @@ jobs:
           version: "0.5.x"
 
       - name: Install project
-        run: uv sync --extra dev
+        run: uv sync --extra dev --extra deploy
 
       - name: Ruff
         run: uv run ruff check wireml tests
@@ -41,6 +41,7 @@ jobs:
           uv run wireml device
           uv run wireml templates
           uv run wireml run demo-synthetic
+          uv run wireml run export-onnx
 
   install-smoke:
     name: One-line install smoke

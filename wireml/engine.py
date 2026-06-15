@@ -102,6 +102,9 @@ def _short_message(schema_id: str, outputs: dict[str, Any]) -> str:
             return f"accuracy {metrics['accuracy']:.3f} · n={metrics.get('n', '?')}"
         if "matrix" in metrics:
             return f"{len(metrics.get('classes', []))}×{len(metrics.get('classes', []))} matrix"
+    if "export" in outputs and isinstance(outputs["export"], dict):
+        export = outputs["export"]
+        return f"{export.get('format', 'export')} → {export.get('path', '?')}"
     if schema_id.startswith("data."):
         imgs = outputs.get("images") or outputs.get("features") or []
         return f"{len(imgs)} samples"

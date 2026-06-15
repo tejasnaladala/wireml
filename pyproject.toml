@@ -5,7 +5,7 @@ description = "Teachable Machine, re-imagined as a terminal TUI on modern founda
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-authors = [{ name = "WireML Contributors" }]
+authors = [{ name = "Tejas Naladala", email = "naladala@uw.edu" }]
 keywords = ["teachable-machine", "tui", "clip", "classification", "transfer-learning"]
 classifiers = [
   "Development Status :: 3 - Alpha",
@@ -37,6 +37,7 @@ ml = [
     "onnxruntime>=1.20.0",
 ]
 webcam = ["opencv-python>=4.10.0", "pynput>=1.7.7"]
+deploy = ["onnx>=1.17.0", "onnxruntime>=1.20.0"]
 mlx = ["mlx>=0.20.0"]
 directml = ["onnxruntime-directml>=1.20.0"]
 dev = [

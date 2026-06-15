@@ -3,7 +3,7 @@
 # WireML
 
 **Teachable Machine, re-imagined as a terminal TUI on modern foundation models.**
-Auto-detects CUDA · MPS · MLX · ROCm · DirectML · XPU · CPU.
+Wire a dataset into a CLIP or DINOv2 backbone, train a classifier head, and export it — without leaving the shell. Auto-detects CUDA · MPS · MLX · ROCm · DirectML · XPU · CPU.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![CI](https://github.com/tejasnaladala/wireml/actions/workflows/ci.yml/badge.svg)](https://github.com/tejasnaladala/wireml/actions/workflows/ci.yml)
@@ -42,8 +42,11 @@ uv tool install "git+https://github.com/tejasnaladala/wireml" --with "wireml[ml]
 wireml                       # launch the TUI
 wireml device                # show the detected compute device
 wireml templates             # list built-in templates
-wireml run demo-synthetic    # headless run — no downloads needed
+wireml run demo-synthetic    # headless run, no downloads needed
+wireml run export-onnx       # train a head and write wireml-model.onnx (wireml[deploy])
 ```
+
+`demo-synthetic` finishes in well under a second on CPU and trains a linear head to ~1.0 accuracy on three well-separated synthetic classes — enough to confirm the engine, the device detection, and the TUI all work before you download a 335 MB CLIP checkpoint.
 
 ## What you get
 
@@ -89,7 +92,9 @@ The engine walks stages in order, routes outputs by port name, and reports progr
 | Eval      | `eval.accuracy` · `eval.confusion`                                     |
 | Deploy    | `deploy.export-onnx`                                                   |
 
-`wireml[ml]` extras add the CLIP / DINOv2 backbones via PyTorch + Transformers. The synthetic + k-NN templates run without them.
+`wireml[ml]` adds the CLIP / DINOv2 backbones via PyTorch + Transformers. `wireml[deploy]` adds ONNX export. The synthetic and k-NN templates run with neither.
+
+`deploy.export-onnx` only handles the linear head — it lowers to a single `Gemm`, embeds the class names as graph metadata, and runs `onnx.checker` before writing. k-NN carries its training set at inference time, so it has no fixed-weight graph and is rejected with a clear error rather than a broken file.
 
 ## Device support
 
@@ -125,10 +130,9 @@ wireml/
 │   ├── registry.py             NodeSchema catalog
 │   ├── templates.py            canonical pre-wired pipelines
 │   ├── schema.py               data types (DeviceInfo, NodeSchema, Pipeline…)
-│   ├── nodes/                  runner implementations (data, backbones, heads, eval)
+│   ├── nodes/                  runner implementations (data, backbones, heads, eval, deploy)
 │   └── tui/                    Textual app, screens, and theme
 ├── tests/                      pytest suite (no model downloads in CI)
-├── docs/                       specs, audit, and historical prompt packs
 ├── install.sh                  one-line installer
 ├── pyproject.toml              hatchling package
 └── README.md

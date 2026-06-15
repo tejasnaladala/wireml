@@ -8,6 +8,7 @@ from __future__ import annotations
 from wireml.nodes import (  # noqa: F401
     backbones,  # noqa: F401
     data,
+    deploy,
     evaluation,
     heads,
 )

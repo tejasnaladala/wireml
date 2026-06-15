@@ -10,11 +10,13 @@ from wireml.templates import TEMPLATES, get_template
 
 
 def test_every_schema_has_a_runner() -> None:
-    """Every non-deploy schema in the registry should be executable."""
+    """Contract: every schema advertised in the registry must be executable.
+
+    Catches the class of bug where a node is shown in the catalog / README but
+    has no registered runner, so invoking it explodes at runtime.
+    """
     runnable = set(engine.supported_ids())
-    missing = [
-        s.id for s in NODE_SCHEMAS if s.category != "deploy" and s.id not in runnable
-    ]
+    missing = [s.id for s in NODE_SCHEMAS if s.id not in runnable]
     assert not missing, f"runners missing for: {missing}"
 
 
