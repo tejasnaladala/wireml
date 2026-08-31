@@ -60,8 +60,13 @@ def run_export_onnx(params: dict[str, Any], inputs: dict[str, Any]) -> dict[str,
     graph = helper.make_graph(
         [gemm], "wireml-linear-head", [inp], [out], initializer=[w_init, b_init]
     )
+    # This graph only needs IR v10. Pinning it keeps exports loadable by the
+    # oldest onnxruntime release supported by wireml[deploy], even when a newer
+    # `onnx` package generated the file.
     onnx_model = helper.make_model(
-        graph, opset_imports=[helper.make_operatorsetid("", opset)]
+        graph,
+        ir_version=10,
+        opset_imports=[helper.make_operatorsetid("", opset)],
     )
     # Record class names so a consumer can map logit index → label.
     if classes:

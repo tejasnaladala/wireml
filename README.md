@@ -82,6 +82,8 @@ data.synthetic  →  backbone.identity  →  head.linear  →  eval.accuracy
 
 The engine walks stages in order, routes outputs by port name, and reports progress via a callback the TUI renders live.
 
+Classifier heads use a deterministic, class-stratified 80/20 split by default. Training sees only the training partition; accuracy and confusion-matrix stages consume only the held-out partition. The split seed and fraction are explicit head parameters.
+
 **Node catalog (v1):**
 
 | Category  | Nodes                                                                  |

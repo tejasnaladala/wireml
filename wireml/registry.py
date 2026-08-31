@@ -10,7 +10,11 @@ NODE_SCHEMAS: tuple[NodeSchema, ...] = (
         name="Upload images",
         category="data",
         description="Folder-per-class dataset. One subfolder per class name.",
-        outputs=(Port("images", "image", array=True), Port("labels", "labels", array=True)),
+        outputs=(
+            Port("images", "image", array=True),
+            Port("labels", "labels", array=True),
+            Port("sample_ids", "sample_ids", array=True),
+        ),
         params=(
             ParamSpec(
                 "folder",
@@ -26,7 +30,11 @@ NODE_SCHEMAS: tuple[NodeSchema, ...] = (
         name="Synthetic demo data",
         category="data",
         description="Built-in toy features + labels for smoke-testing the pipeline.",
-        outputs=(Port("features", "features", array=True), Port("labels", "labels", array=True)),
+        outputs=(
+            Port("features", "features", array=True),
+            Port("labels", "labels", array=True),
+            Port("sample_ids", "sample_ids", array=True),
+        ),
         params=(
             ParamSpec("num_per_class", "number", default=40, min=4, max=500),
             ParamSpec("num_classes", "number", default=3, min=2, max=10),
@@ -82,11 +90,22 @@ NODE_SCHEMAS: tuple[NodeSchema, ...] = (
         name="Linear classifier",
         category="head",
         description="Trainable linear softmax. Fast, works with modest data.",
-        inputs=(Port("features", "features", array=True), Port("labels", "labels", array=True)),
-        outputs=(Port("model", "model"),),
+        inputs=(
+            Port("features", "features", array=True),
+            Port("labels", "labels", array=True),
+            Port("sample_ids", "sample_ids", optional=True, array=True),
+        ),
+        outputs=(
+            Port("model", "model"),
+            Port("eval_features", "features", array=True),
+            Port("eval_labels", "labels", array=True),
+            Port("split", "split"),
+        ),
         params=(
             ParamSpec("epochs", "number", default=50, min=1, max=500),
             ParamSpec("learning_rate", "number", default=0.01, min=1e-5, max=1, step=1e-4),
+            ParamSpec("holdout_fraction", "number", default=0.2, min=0.05, max=0.5, step=0.05),
+            ParamSpec("split_seed", "number", default=42, min=0),
         ),
     ),
     NodeSchema(
@@ -94,11 +113,22 @@ NODE_SCHEMAS: tuple[NodeSchema, ...] = (
         name="k-NN",
         category="head",
         description="Non-parametric nearest-neighbor. No training required.",
-        inputs=(Port("features", "features", array=True), Port("labels", "labels", array=True)),
-        outputs=(Port("model", "model"),),
+        inputs=(
+            Port("features", "features", array=True),
+            Port("labels", "labels", array=True),
+            Port("sample_ids", "sample_ids", optional=True, array=True),
+        ),
+        outputs=(
+            Port("model", "model"),
+            Port("eval_features", "features", array=True),
+            Port("eval_labels", "labels", array=True),
+            Port("split", "split"),
+        ),
         params=(
             ParamSpec("k", "number", default=5, min=1, max=50),
             ParamSpec("metric", "enum", default="cosine", options=("cosine", "euclidean")),
+            ParamSpec("holdout_fraction", "number", default=0.2, min=0.05, max=0.5, step=0.05),
+            ParamSpec("split_seed", "number", default=42, min=0),
         ),
     ),
     # ───────── EVAL ─────────
@@ -109,8 +139,8 @@ NODE_SCHEMAS: tuple[NodeSchema, ...] = (
         description="Top-1 accuracy on a held-out split.",
         inputs=(
             Port("model", "model"),
-            Port("features", "features", array=True),
-            Port("labels", "labels", array=True),
+            Port("eval_features", "features", array=True),
+            Port("eval_labels", "labels", array=True),
         ),
         outputs=(Port("metrics", "metrics"),),
     ),
@@ -121,8 +151,8 @@ NODE_SCHEMAS: tuple[NodeSchema, ...] = (
         description="Per-class confusion matrix.",
         inputs=(
             Port("model", "model"),
-            Port("features", "features", array=True),
-            Port("labels", "labels", array=True),
+            Port("eval_features", "features", array=True),
+            Port("eval_labels", "labels", array=True),
         ),
         outputs=(Port("metrics", "metrics"),),
     ),

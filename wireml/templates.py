@@ -23,7 +23,15 @@ def _image_classifier() -> Pipeline:
         stages=[
             StageState(schema_id="data.upload", params={"folder": ""}),
             StageState(schema_id="backbone.clip.vit-b-32", params={"normalize": True}),
-            StageState(schema_id="head.linear", params={"epochs": 80, "learning_rate": 0.05}),
+            StageState(
+                schema_id="head.linear",
+                params={
+                    "epochs": 80,
+                    "learning_rate": 0.05,
+                    "holdout_fraction": 0.2,
+                    "split_seed": 42,
+                },
+            ),
             StageState(schema_id="eval.accuracy", params={}),
             StageState(schema_id="eval.confusion", params={}),
         ],
@@ -41,7 +49,15 @@ def _demo_synthetic() -> Pipeline:
                 params={"num_per_class": 40, "num_classes": 3, "feature_dim": 16},
             ),
             StageState(schema_id="backbone.identity", params={}),
-            StageState(schema_id="head.linear", params={"epochs": 120, "learning_rate": 0.1}),
+            StageState(
+                schema_id="head.linear",
+                params={
+                    "epochs": 120,
+                    "learning_rate": 0.1,
+                    "holdout_fraction": 0.2,
+                    "split_seed": 42,
+                },
+            ),
             StageState(schema_id="eval.accuracy", params={}),
             StageState(schema_id="eval.confusion", params={}),
         ],
@@ -59,7 +75,15 @@ def _export_onnx() -> Pipeline:
                 params={"num_per_class": 40, "num_classes": 3, "feature_dim": 16},
             ),
             StageState(schema_id="backbone.identity", params={}),
-            StageState(schema_id="head.linear", params={"epochs": 120, "learning_rate": 0.1}),
+            StageState(
+                schema_id="head.linear",
+                params={
+                    "epochs": 120,
+                    "learning_rate": 0.1,
+                    "holdout_fraction": 0.2,
+                    "split_seed": 42,
+                },
+            ),
             StageState(schema_id="deploy.export-onnx", params={"filename": "wireml-model.onnx"}),
         ],
     )
@@ -73,7 +97,15 @@ def _knn_zero_train() -> Pipeline:
         stages=[
             StageState(schema_id="data.synthetic", params={"num_per_class": 30, "num_classes": 3}),
             StageState(schema_id="backbone.identity", params={}),
-            StageState(schema_id="head.knn", params={"k": 5, "metric": "cosine"}),
+            StageState(
+                schema_id="head.knn",
+                params={
+                    "k": 5,
+                    "metric": "cosine",
+                    "holdout_fraction": 0.2,
+                    "split_seed": 42,
+                },
+            ),
             StageState(schema_id="eval.accuracy", params={}),
         ],
     )
