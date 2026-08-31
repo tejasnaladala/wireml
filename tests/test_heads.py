@@ -16,17 +16,31 @@ def test_linear_trains_and_evaluates() -> None:
     features = class_a + class_b
     labels = ["a"] * 20 + ["b"] * 20
 
-    result = run_linear({"epochs": 200, "learning_rate": 0.05}, {
-        "features": features,
-        "labels": labels,
-    })
+    result = run_linear(
+        {"epochs": 200, "learning_rate": 0.05},
+        {
+            "features": features,
+            "labels": labels,
+            "sample_ids": [f"sample-{index}" for index in range(len(features))],
+        },
+    )
     model = result["model"]
     assert model is not None
     assert model["classes"] == ["a", "b"]
 
-    acc = run_accuracy({}, {"model": model, "features": features, "labels": labels})
+    acc = run_accuracy(
+        {},
+        {
+            "model": model,
+            "eval_features": result["eval_features"],
+            "eval_labels": result["eval_labels"],
+        },
+    )
     assert acc["metrics"]["accuracy"] > 0.95
-    assert acc["metrics"]["n"] == 40
+    assert acc["metrics"]["n"] == 8
+    assert set(result["split"]["train_sample_ids"]).isdisjoint(
+        result["split"]["eval_sample_ids"]
+    )
 
 
 def test_knn_confusion_matrix() -> None:
@@ -36,13 +50,44 @@ def test_knn_confusion_matrix() -> None:
         "features": features,
         "labels": labels,
     })
-    conf = run_confusion({}, {
-        "model": model_result["model"],
-        "features": features,
-        "labels": labels,
-    })
+    conf = run_confusion(
+        {},
+        {
+            "model": model_result["model"],
+            "eval_features": model_result["eval_features"],
+            "eval_labels": model_result["eval_labels"],
+        },
+    )
     matrix = conf["metrics"]["matrix"]
-    assert matrix == [[2, 0], [0, 2]]
+    assert matrix == [[1, 0], [0, 1]]
+
+
+def test_knn_random_labels_are_evaluated_out_of_sample() -> None:
+    """Random labels must not score perfectly through self-neighbor leakage."""
+    rng = np.random.default_rng(7)
+    features = rng.normal(size=(600, 8)).astype(np.float32).tolist()
+    labels = ["a", "b", "c"] * 200
+    rng.shuffle(labels)
+    sample_ids = [f"random-{index}" for index in range(len(features))]
+
+    result = run_knn(
+        {"k": 1, "metric": "euclidean", "holdout_fraction": 0.2, "split_seed": 11},
+        {"features": features, "labels": labels, "sample_ids": sample_ids},
+    )
+    metrics = run_accuracy(
+        {},
+        {
+            "model": result["model"],
+            "eval_features": result["eval_features"],
+            "eval_labels": result["eval_labels"],
+        },
+    )["metrics"]
+
+    assert metrics["n"] == 120
+    assert metrics["accuracy"] < 0.5
+    assert set(result["split"]["train_sample_ids"]).isdisjoint(
+        result["split"]["eval_sample_ids"]
+    )
 
 
 def test_export_onnx_round_trips(tmp_path) -> None:
@@ -65,6 +110,7 @@ def test_export_onnx_round_trips(tmp_path) -> None:
     # The exported graph must reproduce the numpy head's argmax predictions.
     loaded = onnx.load(str(out_file))
     onnx.checker.check_model(loaded)
+    assert loaded.ir_version == 10
     session = ort.InferenceSession(str(out_file))
     logits = session.run(None, {"features": np.asarray(features, dtype=np.float32)})[0]
     onnx_preds = logits.argmax(axis=1).tolist()
@@ -77,6 +123,9 @@ def test_export_onnx_round_trips(tmp_path) -> None:
 
 def test_export_onnx_rejects_knn() -> None:
     pytest.importorskip("onnx")
-    model = run_knn({}, {"features": [[0.0, 0.0]], "labels": ["a"]})["model"]
+    model = run_knn(
+        {},
+        {"features": [[0.0, 0.0], [0.1, 0.1]], "labels": ["a", "a"]},
+    )["model"]
     with pytest.raises(RuntimeError, match="only supports the linear head"):
         run_export_onnx({}, {"model": model})

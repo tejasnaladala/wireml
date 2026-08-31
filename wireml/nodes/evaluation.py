@@ -56,8 +56,8 @@ def _predict(model: dict[str, Any], features: list[list[float]]) -> list[int]:
 @engine.register("eval.accuracy")
 def run_accuracy(_params: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
     model = inputs.get("model")
-    features = inputs.get("features") or []
-    labels = inputs.get("labels") or []
+    features = inputs.get("eval_features") or []
+    labels = inputs.get("eval_labels") or []
     if model is None or not features or len(features) != len(labels):
         return {"metrics": {"accuracy": 0.0, "n": 0}}
 
@@ -78,8 +78,8 @@ def run_accuracy(_params: dict[str, Any], inputs: dict[str, Any]) -> dict[str, A
 @engine.register("eval.confusion")
 def run_confusion(_params: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
     model = inputs.get("model")
-    features = inputs.get("features") or []
-    labels = inputs.get("labels") or []
+    features = inputs.get("eval_features") or []
+    labels = inputs.get("eval_labels") or []
     if model is None or not features or len(features) != len(labels):
         return {"metrics": {"matrix": [], "classes": []}}
 

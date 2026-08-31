@@ -26,14 +26,21 @@ def run_synthetic(params: dict[str, Any], _inputs: dict[str, Any]) -> dict[str, 
     centroids = rng.normal(0, 3, size=(num_classes, feature_dim)).astype(np.float32)
     features: list[list[float]] = []
     labels: list[str] = []
+    sample_ids: list[str] = []
     class_names = [f"class_{chr(ord('a') + i)}" for i in range(num_classes)]
 
     for idx, name in enumerate(class_names):
         samples = centroids[idx] + rng.normal(0, 0.4, size=(num_per_class, feature_dim))
         features.extend(samples.astype(np.float32).tolist())
         labels.extend([name] * num_per_class)
+        sample_ids.extend(f"synthetic:{name}:{i}" for i in range(num_per_class))
 
-    return {"features": features, "labels": labels, "classes": class_names}
+    return {
+        "features": features,
+        "labels": labels,
+        "sample_ids": sample_ids,
+        "classes": class_names,
+    }
 
 
 @engine.register("data.upload")
@@ -58,6 +65,7 @@ def run_upload(params: dict[str, Any], _inputs: dict[str, Any]) -> dict[str, Any
 
     images: list[Any] = []
     labels: list[str] = []
+    sample_ids: list[str] = []
     class_names: list[str] = []
     for class_dir in class_dirs:
         class_names.append(class_dir.name)
@@ -71,8 +79,14 @@ def run_upload(params: dict[str, Any], _inputs: dict[str, Any]) -> dict[str, Any
                 continue
             images.append(img)
             labels.append(class_dir.name)
+            sample_ids.append(file.relative_to(folder).as_posix())
 
     if not images:
         raise RuntimeError(f"no images found under {folder!s}")
 
-    return {"images": images, "labels": labels, "classes": class_names}
+    return {
+        "images": images,
+        "labels": labels,
+        "sample_ids": sample_ids,
+        "classes": class_names,
+    }
