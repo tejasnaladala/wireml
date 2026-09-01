@@ -2,8 +2,9 @@
 
 # WireML
 
-**Teachable Machine, re-imagined as a terminal TUI on modern foundation models.**
-Wire a dataset into a CLIP or DINOv2 backbone, train a classifier head, and export it — without leaving the shell. Auto-detects CUDA · MPS · MLX · ROCm · DirectML · XPU · CPU.
+**An interactive terminal workbench for image-classification pipelines.**
+
+Launch image-folder, k-NN, and synthetic workflows, plus optional webcam capture, from a Textual dashboard. WireML detects the available compute backend, runs each pipeline stage, streams its log, and keeps results in the terminal.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![CI](https://github.com/tejasnaladala/wireml/actions/workflows/ci.yml/badge.svg)](https://github.com/tejasnaladala/wireml/actions/workflows/ci.yml)
@@ -14,26 +15,45 @@ Wire a dataset into a CLIP or DINOv2 backbone, train a classifier head, and expo
 
 ---
 
-## Install
+## Terminal workbench
 
-One line. Installs [uv](https://astral.sh/uv) if needed, then installs WireML as an isolated global tool.
+Running `wireml` opens a keyboard-driven dashboard with the working areas used by the application:
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/tejasnaladala/wireml/main/install.sh | sh
+```text
+┌─ wire/ml ────────────────────────────────────────────────────────────────────┐
+│  TRAINING LAUNCHPAD                       │  SYSTEM                           │
+│  ◆ Synthetic demo                        │  detected device and runtime      │
+│  ≡ k-NN · no training                    │                                   │
+│  ▦ Image folder classifier               ├─ RECENT SESSIONS ─────────────────┤
+│  ▶ Webcam: phone detector                │  captured training sessions       │
+│  ◉ Webcam: attention monitor             │                                   │
+│  ✋ Webcam: hand gestures                 ├─ KEYBINDINGS ──────────────────────┤
+│  ✱ Webcam: custom classes                │  ↑↓ move · Enter launch · d doctor│
+└───────────────────────────────────────────┴───────────────────────────────────┘
 ```
 
-Or, if you already have `uv`:
+Selecting a pipeline opens its ordered stages beside a live run log and a results table. The dashboard also exposes device diagnostics and recent webcam capture sessions.
+
+## Install
+
+Install WireML as an isolated tool with [uv](https://docs.astral.sh/uv/):
 
 ```bash
 uv tool install git+https://github.com/tejasnaladala/wireml
 ```
 
-To pull the ML extras (CLIP / DINOv2 / Torch / Transformers):
+If `uv` is not installed, the repository bootstrap script installs it first and then installs WireML:
 
 ```bash
-WIREML_EXTRAS=ml curl -fsSL https://raw.githubusercontent.com/tejasnaladala/wireml/main/install.sh | sh
-# or
+curl -fsSL https://raw.githubusercontent.com/tejasnaladala/wireml/main/install.sh | sh
+```
+
+For the CLIP, DINOv2, Torch, and Transformers dependencies:
+
+```bash
 uv tool install "git+https://github.com/tejasnaladala/wireml" --with "wireml[ml]"
+# bootstrap-script equivalent
+WIREML_EXTRAS=ml curl -fsSL https://raw.githubusercontent.com/tejasnaladala/wireml/main/install.sh | sh
 ```
 
 ## Run
@@ -45,32 +65,6 @@ wireml templates             # list built-in templates
 wireml run demo-synthetic    # headless run, no downloads needed
 wireml run export-onnx       # train a head and write wireml-model.onnx (wireml[deploy])
 ```
-
-`demo-synthetic` finishes in well under a second on CPU and trains a linear head to ~1.0 accuracy on three well-separated synthetic classes — enough to confirm the engine, the device detection, and the TUI all work before you download a 335 MB CLIP checkpoint.
-
-## What you get
-
-A dark, tight, single-binary-feel terminal workbench:
-
-```
-┌─ WireML · node-graph ML on foundation models — terminal edition ──────────────┐
-│                                                                               │
-│ ┌ TEMPLATES ─────────────────┐   ┌ DEVICE ────────────────────┐               │
-│ │ ▸ Synthetic demo           │   │ CUDA     RTX 4090          │               │
-│ │   Image classifier         │   │          24.0 GB VRAM      │               │
-│ │   k-NN (no training)       │   │          sm_89             │               │
-│ └────────────────────────────┘   │                             │               │
-│                                   │ SHORTCUTS                   │               │
-│                                   │   ↑↓    move selection      │               │
-│                                   │   Enter open template       │               │
-│                                   │   r     run synthetic demo  │               │
-│                                   │   q     quit                │               │
-│                                   └─────────────────────────────┘               │
-│                                                                               │
-└─ wireml 0.2.0 ───────────────────────────────────────────────────────────────┘
-```
-
-Every template opens a pipeline view with a run log and a results table.
 
 ## How it works
 
@@ -96,19 +90,23 @@ Classifier heads use a deterministic, class-stratified 80/20 split by default. T
 
 `wireml[ml]` adds the CLIP / DINOv2 backbones via PyTorch + Transformers. `wireml[deploy]` adds ONNX export. The synthetic and k-NN templates run with neither.
 
-`deploy.export-onnx` only handles the linear head — it lowers to a single `Gemm`, embeds the class names as graph metadata, and runs `onnx.checker` before writing. k-NN carries its training set at inference time, so it has no fixed-weight graph and is rejected with a clear error rather than a broken file.
+`deploy.export-onnx` only handles the linear head — it lowers to a single `Gemm`, embeds the class names as graph metadata, and runs `onnx.checker` before writing. k-NN carries its training set at inference time and has no fixed-weight graph, so WireML rejects k-NN export with a clear error.
+
+### Synthetic smoke test
+
+`wireml run demo-synthetic` checks data routing, head training, held-out evaluation, and progress reporting without downloading a model. Its generated classes are deliberately easy to separate. Treat the resulting accuracy only as a plumbing check.
 
 ## Device support
 
 `wireml device` reports the best backend the current machine exposes. Detection priority:
 
 1. **CUDA** (NVIDIA)
-2. **MLX** (Apple Silicon) — fastest path on M-series Macs (`wireml[mlx]`)
+2. **MLX** (Apple Silicon; `wireml[mlx]`)
 3. **MPS** (Apple Silicon fallback) — PyTorch native Metal
 4. **ROCm** (AMD) — auto-detected when torch has `version.hip` set
 5. **DirectML** (Windows) — via `onnxruntime-directml` (`wireml[directml]`)
 6. **XPU** (Intel) — via `torch.xpu`
-7. **CPU** (always available)
+7. **CPU** (fallback)
 
 ## Development
 
